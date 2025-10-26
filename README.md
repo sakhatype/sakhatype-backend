@@ -1,14 +1,29 @@
-# PYTHON VENV (виртальное окружение venv)
-py -m venv venv                         | создание venv
-venv\Scripts\activate                   | вход в venv
+### PYTHON VENV (виртуальное окружение)
 
-# PYTHON Запуск Backend
-uvicorn main:app --reload
+```bash
+py -m venv venv         # Создание виртуального окружения
+venv\Scripts\activate   # Активация виртуального окружения (Windows)
+```
 
-# PYTHON Зависимости requirements.txt
-pip install -r requirements.txt         | установка requirements.txt
-pip freeze > requirements.txt           | создание requirements.txt
+> 💡 Если активация не работает, откройте PowerShell от имени администратора и выполните:
 
-# venv\Scripts\activate если не работает
-Открыть PowerShell от имени администратора.
+```powershell
 Set-ExecutionPolicy RemoteSigned
+```
+
+---
+
+### Запуск Backend
+
+```bash
+uvicorn main:app --reload   # Запуск сервера с авто-перезагрузкой
+```
+
+---
+
+### Работа с зависимостями (requirements.txt)
+
+```bash
+pip install -r requirements.txt    # Установка зависимостей
+pip freeze > requirements.txt      # Сохранение зависимостей
+```
