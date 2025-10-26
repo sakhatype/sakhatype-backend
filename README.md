@@ -1,4 +1,4 @@
-### PYTHON VENV (виртуальное окружение)
+### Python venv (виртуальное окружение)
 
 ```bash
 py -m venv venv         # Создание виртуального окружения
@@ -16,7 +16,7 @@ Set-ExecutionPolicy RemoteSigned
 ### Запуск Backend
 
 ```bash
-uvicorn main:app --reload   # Запуск сервера с авто-перезагрузкой
+uvicorn main:app --reload   # Запуск
 ```
 
 ---
