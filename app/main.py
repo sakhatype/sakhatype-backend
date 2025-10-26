@@ -16,6 +16,11 @@ app = FastAPI(
     }
 )
 
+
+@app.get("/")
+async def hello():
+    return {"message": "Sakhatype API үлэлии турар"}
+
 @app.post('/auth/register')
 def register(user: schemas.User, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
