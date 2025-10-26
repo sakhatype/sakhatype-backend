@@ -1,1 +1,3 @@
+backend/app/.idea
 backend/app/__pycache__
+backend/app/sakhatype.db
