@@ -25,7 +25,7 @@ def create_access_token(username: str):
 def get_current_username(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail='Count not validate credentials',
+        detail='Could not validate credentials',
         headers={'WWW-Authenticate': 'Bearer'}
     )
     try:
