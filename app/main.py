@@ -24,7 +24,8 @@ def register(user: schemas.User, db: Session = Depends(get_db)):
             status_code=400,
             detail=f'User with username {user.username} already exists'
         )
-    return crud.create_user(db, user)
+    crud.create_user(db, user)
+    return user.username
 
 @app.post('/auth/login')
 def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
