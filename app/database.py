@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from fastapi import HTTPException
 
-from config import settings
+from .config import settings
 
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)

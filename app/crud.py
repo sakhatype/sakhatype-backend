@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-import models
-import schemas
-from auth import get_password_hash, verify_password
+from . import models
+from . import schemas
+from .auth import get_password_hash, verify_password
 
 def get_user_by_username(db: Session, username: str):
     return db.query(models.User).filter(models.User.username == username).first()

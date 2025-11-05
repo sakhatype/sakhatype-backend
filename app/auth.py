@@ -4,7 +4,7 @@ from fastapi import HTTPException, status, Depends
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 
-from config import settings
+from .config import settings
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")

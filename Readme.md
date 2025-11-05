@@ -1,0 +1,1 @@
+uvicorn app.main:app --reload --host --port 8888
