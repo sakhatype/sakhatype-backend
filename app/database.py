@@ -19,7 +19,6 @@ def get_db():
             db.execute(text("SELECT 1"))
         except OperationalError:
             logger.error('Database session is invalid')
-            db.rollback()
             db.close()
             raise HTTPException(
                 status_code=503,

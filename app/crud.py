@@ -1,8 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from . import models
-from . import schemas
+from . import models, schemas
 from .auth import get_password_hash, verify_password
 
 def get_user_by_username(db: Session, username: str):
