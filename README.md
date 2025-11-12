@@ -16,9 +16,8 @@ Set-ExecutionPolicy RemoteSigned
 ### Запуск Backend
 
 ```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8080   # Запуск
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8080   # Запуск
 ```
-
 ---
 
 ### Работа с зависимостями (requirements.txt)
