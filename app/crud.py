@@ -4,18 +4,18 @@ from sqlalchemy import func
 from . import models, schemas
 from .auth import get_password_hash, verify_password
 
-def get_user_by_username(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+def get_user_by_login(db: Session, login: str):
+    return db.query(models.User).filter(models.User.login == login).first()
 
 def create_user(db: Session, user: schemas.User):
-    db_user = models.User(username=user.username, password=get_password_hash(user.password))
+    db_user = models.User(login=user.login, password=get_password_hash(user.password))
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
-def authenticate_user(db: Session, username: str, password: str):
-    user = get_user_by_username(db, username)
+def authenticate_user(db: Session, login: str, password: str):
+    user = get_user_by_login(db, login)
     if not user or not verify_password(password, user.password):
         return False
     return user

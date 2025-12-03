@@ -1,3 +1,4 @@
-sakhatype.db
+.venv
+.env
 app/.idea
 app/__pycache__
