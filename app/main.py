@@ -49,15 +49,15 @@ app.add_middleware(
 )
 
 @app.exception_handler(OperationalError)
-async def db_connection_error_handler(request: Request, exc: OperationalError):
-    print(f'Critical database error: {exc}')
+async def db_connection_error_handler(request: Request, exception: OperationalError):
+    print(f'Critical database error: {exception}')
     return JSONResponse(
         status_code=503,
         content={'message': 'Service is temporarily unavailable.'}
     )
 
 @app.exception_handler(IntegrityError)
-async def db_integrity_error_handler(request: Request, exc: IntegrityError):
+async def db_integrity_error_handler(request: Request, exception: IntegrityError):
     return JSONResponse(
         status_code=409,
         content={'message': 'Data error. Maybe this user already exists.'}
