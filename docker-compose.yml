@@ -6,6 +6,6 @@ services:
     ports:
       - "8000:80"
     environment:
-      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db.esddptmipsmgaoebzujl.supabase.co:5432/${DB_NAME}
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@aws-1-eu-west-1.pooler.supabase.com:6543/${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
     restart: unless-stopped
