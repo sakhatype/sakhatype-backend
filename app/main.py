@@ -26,10 +26,10 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.post('/auth/register')
+@app.post('/auth/register', status_code=201)
 def register(user: schemas.User, db: Session = Depends(get_db)):
     user.login = user.login.lower()
-    if not re.match(r'^[a-z0-9]+$', user.login) or not re.match(r'^[a-zA-Z0-9]+$', user.password):
+    if not re.match(r'^[a-z0-9]+$', user.login):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Username format is invalid. Only a-z, A-Z and 0-9 allowed.'
@@ -41,15 +41,15 @@ def register(user: schemas.User, db: Session = Depends(get_db)):
             detail=f'User with login {user.login} already exists.'
         )
     crud.create_user(db, user)
-    return user.login
+    return {'login': user.login, 'message': 'User registered successfully.'}
 
 @app.post('/auth/login')
 def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user.username = user.username.lower()
-    if not re.match(r'^[a-z0-9]+$', user.username) or not re.match(r'^[a-zA-Z0-9]+$', user.password):
+    if not re.match(r'^[a-z0-9]+$', user.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail='Username or password format is invalid. Only a-z, A-Z and 0-9 allowed.'
+            detail='Username format is invalid. Only a-z, A-Z and 0-9 allowed.'
         )
     db_user = authenticate_user(db, user.username, user.password)
     if not db_user:
