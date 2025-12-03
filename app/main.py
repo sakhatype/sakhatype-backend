@@ -1,23 +1,45 @@
 import re
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy.orm import Session
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from . import models, schemas, crud
 from .crud import authenticate_user
-from .database import engine, get_db
+from .database import engine, get_db, SessionLocal
 from .auth import create_access_token, get_current_login
 
 models.Base.metadata.create_all(bind=engine)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        db = SessionLocal()
+        db.execute(text('SELECT 1'))
+        db.close()
+        print('Database is connected.')
+    except Exception as error:
+        print('Could not connect to database.')
+        print(error)
+    yield
+    print('App is stopped.')
+
 app = FastAPI(
     title='Sakhatype',
-    version='1.0'
+    version='1.0',
+    lifespan=lifespan
 )
+
 origins = [
     # пока что хз
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -25,6 +47,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+@app.exception_handler(OperationalError)
+async def db_connection_error_handler(request: Request, exc: OperationalError):
+    print(f'Critical database error: {exc}')
+    return JSONResponse(
+        status_code=503,
+        content={'message': 'Service is temporarily unavailable.'}
+    )
+
+@app.exception_handler(IntegrityError)
+async def db_integrity_error_handler(request: Request, exc: IntegrityError):
+    return JSONResponse(
+        status_code=409,
+        content={'message': 'Data error. Maybe this user already exists.'}
+    )
 
 @app.post('/auth/register', status_code=201)
 def register(user: schemas.User, db: Session = Depends(get_db)):
