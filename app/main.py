@@ -61,20 +61,20 @@ async def db_integrity_error_handler(request: Request, exception: IntegrityError
 
 @app.post('/api/auth/register', status_code=201)
 def register(user: schemas.User, db: Session = Depends(get_db)):
-    user.login = user.login.lower()
-    if not re.match(r'^[a-z0-9]+$', user.login):
+    user.username = user.username.lower()
+    if not re.match(r'^[a-z0-9]+$', user.username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail='Username format is invalid. Only a-z, A-Z and 0-9 allowed.'
         )
-    db_user = crud.get_user_by_login(db, user.login)
+    db_user = crud.get_user_by_username(db, user.username)
     if db_user:
         raise HTTPException(
             status_code=400,
-            detail=f'User with login {user.login} already exists.'
+            detail=f'User with username {user.username} already exists.'
         )
     crud.create_user(db, user)
-    return {'login': user.login, 'message': 'User registered successfully.'}
+    return {'login': user.username, 'message': 'User registered successfully.'}
 
 @app.post('/api/auth/login')
 def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -88,15 +88,15 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Incorrect login or password.',
+            detail='Incorrect username or password.',
             headers={'WWW-Authenticate': 'Bearer'}
         )
     access_token = create_access_token(user.username)
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 @app.get('/api/users/me')
-def get_current_user_info(login: str = Depends(get_current_login)):
-    return {'login': login}
+def get_current_user_info(username: str = Depends(get_current_username)):
+    return {'username': username}
 
 @app.get('/api/words')
 def get_words(limit: int = 30, db: Session = Depends(get_db)):
