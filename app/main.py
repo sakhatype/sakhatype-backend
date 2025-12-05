@@ -11,9 +11,9 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from . import models, schemas, crud
-from .crud import authenticate_user
+from .crud import authenticate_user, get_user_by_username
 from .database import engine, get_db, SessionLocal
-from .auth import create_access_token, get_current_login
+from .auth import create_access_token, get_current_username
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -36,9 +36,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+origins = [
+    'http://localhost:5173',
+    'https://sakhatype-sakhatype-frontend-0564.twc1.net'
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*']
@@ -95,8 +100,11 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 @app.get('/api/users/me')
-def get_current_user_info(username: str = Depends(get_current_username)):
-    return {'username': username}
+def get_current_user_info(username: str = Depends(get_current_username), db: Session = Depends(get_db)):
+    user = get_user_by_username(db, username)
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found.')
+    return user
 
 @app.get('/api/words')
 def get_words(limit: int = 30, db: Session = Depends(get_db)):
