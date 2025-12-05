@@ -48,18 +48,18 @@ app.add_middleware(
 async def db_connection_error_handler(request: Request, exception: OperationalError):
     print(f'Critical database error: {exception}')
     return JSONResponse(
-        status_code=503,
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content={'message': 'Service is temporarily unavailable.'}
     )
 
 @app.exception_handler(IntegrityError)
 async def db_integrity_error_handler(request: Request, exception: IntegrityError):
     return JSONResponse(
-        status_code=409,
+        status_code=status.HTTP_409_CONFLICT,
         content={'message': 'Data error. Maybe this user already exists.'}
     )
 
-@app.post('/api/auth/register', status_code=201)
+@app.post('/api/auth/register', status_code=status.HTTP_201_CREATED)
 def register(user: schemas.User, db: Session = Depends(get_db)):
     user.username = user.username.lower()
     if not re.match(r'^[a-z0-9]+$', user.username):
@@ -70,7 +70,7 @@ def register(user: schemas.User, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
     if db_user:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'User with username {user.username} already exists.'
         )
     crud.create_user(db, user)
