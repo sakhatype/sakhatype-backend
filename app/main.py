@@ -36,16 +36,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-origins = [
-    # пока что хз
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=['*'],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
+    allow_methods=['*'],
+    allow_headers=['*']
 )
 
 @app.exception_handler(OperationalError)
@@ -63,7 +59,7 @@ async def db_integrity_error_handler(request: Request, exception: IntegrityError
         content={'message': 'Data error. Maybe this user already exists.'}
     )
 
-@app.post('/auth/register', status_code=201)
+@app.post('/api/auth/register', status_code=201)
 def register(user: schemas.User, db: Session = Depends(get_db)):
     user.login = user.login.lower()
     if not re.match(r'^[a-z0-9]+$', user.login):
@@ -80,7 +76,7 @@ def register(user: schemas.User, db: Session = Depends(get_db)):
     crud.create_user(db, user)
     return {'login': user.login, 'message': 'User registered successfully.'}
 
-@app.post('/auth/login')
+@app.post('/api/auth/login')
 def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user.username = user.username.lower()
     if not re.match(r'^[a-z0-9]+$', user.username):
@@ -98,10 +94,10 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     access_token = create_access_token(user.username)
     return {'access_token': access_token, 'token_type': 'bearer'}
 
-@app.get('/users/me')
+@app.get('/api/users/me')
 def get_current_user_info(login: str = Depends(get_current_login)):
     return {'login': login}
 
-@app.get('/words')
+@app.get('/api/words')
 def get_words(limit: int = 30, db: Session = Depends(get_db)):
     return [word[0] for word in crud.get_words(db, 30)]
