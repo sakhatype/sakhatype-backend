@@ -102,5 +102,5 @@ def get_current_user_info(username: str = Depends(get_current_username), db: Ses
     return user
 
 @app.get('/api/words')
-def get_words(limit: int = 30, db: Session = Depends(get_db)):
-    return [word[0] for word in crud.get_words(db, 30)]
+def get_words(limit: int = 200, db: Session = Depends(get_db)):
+    return [word[0] for word in crud.get_words(db, limit)]
