@@ -38,6 +38,7 @@ class UserResponse(UserBase):
 
 class TestResultResponse(BaseModel):
     id: int
+    user_id: int
     username: str
 
     time_mode: int

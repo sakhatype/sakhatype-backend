@@ -85,14 +85,14 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     return {'access_token': access_token, 'token_type': 'bearer', 'username': user.username}
 
 @app.get('/api/users/me', response_model=schemas.UserResponse)
-def get_current_user_info(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
+def get_current_user(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
     user = crud.get_user_by_id(db, id)
     if not user:
         raise HTTPException(status_code=404, detail='User not found.')
     return user
 
 @app.get('/api/profile/{username}', response_model=schemas.UserResponse)
-def get_user_info(username: str, db: Session = Depends(get_db)):
+def get_user_by_username(username: str, db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username)
     if not user:
         raise HTTPException(status_code=404, detail='User not found.')
