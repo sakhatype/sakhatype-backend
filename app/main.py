@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 
 from . import models, schemas, crud
 from .auth import create_access_token, get_current_id
+from .config import settings
 from .database import engine, get_db, SessionLocal
 
 logging.basicConfig(level=logging.INFO)
@@ -39,7 +40,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['https://sakhatype-sakhatype-frontend-0564.twc1.net'],
+    allow_origins=settings.ALLOWED_ORIGINS.split(','),
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*']
