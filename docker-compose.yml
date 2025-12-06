@@ -8,4 +8,5 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@aws-1-eu-west-1.pooler.supabase.com:6543/${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
     restart: unless-stopped
