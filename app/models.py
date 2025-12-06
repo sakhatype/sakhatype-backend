@@ -1,25 +1,30 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Float, DateTime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import String, DateTime, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 class User(Base):
     __tablename__ = 'users'
 
-    username = Column(String, primary_key=True)
-    password = Column(String)
-    total_tests = Column(Integer, default=0)
-    total_time_seconds = Column(Integer, default=0)
-    best_wpm = Column(Float, default=0.0)
-    best_accuracy = Column(Float, default=0.0)
-    total_experience = Column(Integer, default=0)
-    level = Column(Integer, default=1)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+
+    total_tests: Mapped[int] = mapped_column(default=0, server_default="0")
+    total_time_seconds: Mapped[int] = mapped_column(default=0, server_default="0")
+    best_wpm: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
+    best_accuracy: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
+    total_experience: Mapped[int] = mapped_column(default=0, server_default="0")
+    level: Mapped[int] = mapped_column(default=1, server_default="1")
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 class Word(Base):
     __tablename__ = 'words'
 
-    id = Column(Integer, primary_key=True)
-    word = Column(String)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    word: Mapped[str] = mapped_column(String(100), unique=True, index=True)
