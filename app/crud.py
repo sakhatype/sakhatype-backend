@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, select
 
 from . import models, schemas
@@ -30,6 +30,16 @@ def authenticate_user(db: Session, username: str, password: str):
     if not user or not verify_password(password, user.password_hash):
         return False
     return user
+
+def get_user_results(db: Session, id: int, limit: int = 50):
+    stmt = (
+        select(models.TestResult)
+        .options(joinedload(models.TestResult.user))
+        .where(models.TestResult.user_id == id)
+        .order_by(models.TestResult.created_at.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
 
 def get_words(db: Session, limit: int = 30):
     stmt = select(models.Word.word).order_by(func.random()).limit(limit)

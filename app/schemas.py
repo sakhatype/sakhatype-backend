@@ -35,3 +35,20 @@ class UserResponse(UserBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class TestResultResponse(BaseModel):
+    id: int
+    username: str
+
+    time_mode: int
+    test_duration: int
+    wpm: float
+    accuracy: float
+    raw_wpm: float
+    burst_wpm: float
+    consistency: float
+    total_errors: int
+
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
