@@ -91,6 +91,13 @@ def get_current_user_info(id: int = Depends(get_current_id), db: Session = Depen
         raise HTTPException(status_code=404, detail='User not found.')
     return user
 
+@app.get('/api/profile/{username}', response_model=schemas.UserResponse)
+def get_user_info(username: str, db: Session = Depends(get_db)):
+    user = crud.get_user_by_id(db, id)
+    if not user:
+        raise HTTPException(status_code=404, detail='User not found.')
+    return user
+
 @app.get('/api/words', response_model=list[str])
 def get_words(limit: int = 200, db: Session = Depends(get_db)):
     return crud.get_words(db, limit)
