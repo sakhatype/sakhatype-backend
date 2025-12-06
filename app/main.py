@@ -10,11 +10,9 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from .schemas import UserRegisterResponse, Token, UserResponse
 from . import models, schemas, crud
-from .crud import authenticate_user, get_user_by_username, get_user_by_id
-from .database import engine, get_db, SessionLocal
 from .auth import create_access_token, get_current_id
+from .database import engine, get_db, SessionLocal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,7 +60,7 @@ async def db_integrity_error_handler(request: Request, exception: IntegrityError
         content={'message': 'Data error. Maybe this user already exists.'}
     )
 
-@app.post('/api/auth/register', status_code=status.HTTP_201_CREATED, response_model=UserRegisterResponse)
+@app.post('/api/auth/register', status_code=status.HTTP_201_CREATED, response_model=schemas.UserRegisterResponse)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
     if db_user:
@@ -71,12 +69,12 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
             detail=f'User with username {user.username} already exists.'
         )
     crud.create_user(db, user)
-    return {'username': user.username, 'message': 'User registered successfully.'}
+    return {'username': user.username}
 
-@app.post('/api/auth/login', response_model=Token)
+@app.post('/api/auth/login', response_model=schemas.Token)
 def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user.username = user.username.lower()
-    db_user = authenticate_user(db, user.username, user.password)
+    db_user = crud.authenticate_user(db, user.username, user.password)
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -86,13 +84,13 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     access_token = create_access_token(db_user.id)
     return {'access_token': access_token, 'token_type': 'bearer', 'username': user.username}
 
-@app.get('/api/users/me', response_model=UserResponse)
+@app.get('/api/users/me', response_model=schemas.UserResponse)
 def get_current_user_info(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
-    user = get_user_by_id(db, id)
+    user = crud.get_user_by_id(db, id)
     if not user:
         raise HTTPException(status_code=404, detail='User not found.')
     return user
 
-@app.get('/api/words')
+@app.get('/api/words', response_model=list[str])
 def get_words(limit: int = 200, db: Session = Depends(get_db)):
     return crud.get_words(db, limit)

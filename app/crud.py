@@ -4,6 +4,10 @@ from sqlalchemy import func, select
 from . import models, schemas
 from .auth import get_password_hash, verify_password
 
+def get_user_by_id(db: Session, id: int):
+    stmt = select(models.User).where(models.User.id == id)
+    return db.scalar(stmt)
+
 def get_user_by_username(db: Session, username: str):
     stmt = select(models.User).where(models.User.username == username)
     return db.scalar(stmt)
@@ -26,10 +30,6 @@ def authenticate_user(db: Session, username: str, password: str):
     if not user or not verify_password(password, user.password_hash):
         return False
     return user
-
-def get_user_by_id(db: Session, id: int):
-    stmt = select(models.User).where(models.User.id == id)
-    return db.scalar(stmt)
 
 def get_words(db: Session, limit: int = 30):
     stmt = select(models.Word.word).order_by(func.random()).limit(limit)

@@ -1,10 +1,17 @@
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
-class UserCreate(BaseModel):
+class Token(BaseModel):
+    access_token: str
+    token_type: str
     username: str
+
+class UserBase(BaseModel):
+    username: str
+
+class UserCreate(UserBase):
     password: str
 
     @field_validator('username')
@@ -14,18 +21,10 @@ class UserCreate(BaseModel):
             raise ValueError('Username format is invalid. Only a-z and 0-9 allowed.')
         return value
 
-class UserRegisterResponse(BaseModel):
-    username: str
-    message: str
+class UserRegisterResponse(UserBase):
+    pass
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-    username: str
-
-class UserResponse(BaseModel):
-    username: str
-
+class UserResponse(UserBase):
     total_tests: int
     total_time_seconds: int
     best_wpm: float
@@ -35,5 +34,4 @@ class UserResponse(BaseModel):
 
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
