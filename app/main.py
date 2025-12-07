@@ -20,8 +20,6 @@ from .database import engine, get_db, SessionLocal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logging.getLogger("uvicorn.access").disabled = True
-
 
 class CustomLogMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -32,12 +30,14 @@ class CustomLogMiddleware(BaseHTTPMiddleware):
         username = "Guest"
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            try:
-                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-                username = payload.get("username", "Unknown")
-            except Exception:
-                username = "Invalid-Token"
+            parts = auth_header.split(" ")
+            if len(parts) == 2:
+                token = parts[1]
+                try:
+                    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+                    username = payload.get("username", "Unknown")
+                except Exception:
+                    username = "Invalid-Token"
         response = await call_next(request)
         process_time = (time.time() - start_time) * 1000
         logger.info(
@@ -50,6 +50,7 @@ models.Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.getLogger("uvicorn.access").disabled = True
     try:
         db = SessionLocal()
         db.execute(text('SELECT 1'))
