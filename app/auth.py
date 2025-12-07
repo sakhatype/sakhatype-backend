@@ -15,9 +15,9 @@ def get_password_hash(password: str):
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
-def create_access_token(id: int):
+def create_access_token(id: int, username: str):
     return jwt.encode(
-        {'sub': str(id), 'exp': datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)},
+        {'sub': str(id), 'username': username, 'exp': datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)},
         settings.SECRET_KEY,
         algorithm=settings.ALGORITHM
     )

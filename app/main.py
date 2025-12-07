@@ -1,11 +1,14 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, IntegrityError
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -17,6 +20,31 @@ from .database import engine, get_db, SessionLocal
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logging.getLogger("uvicorn.access").disabled = True
+
+
+class CustomLogMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if not path.startswith("/api/"):
+            return await call_next(request)
+        start_time = time.time()
+        username = "Guest"
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+                username = payload.get("username", "Unknown")
+            except Exception:
+                username = "Invalid-Token"
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        logger.info(
+            f"User: {username} | {request.method} {path} | "
+            f"{response.status_code} {response.status_phrase} | {process_time:.2f}ms"
+        )
+        return response
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -37,6 +65,8 @@ app = FastAPI(
     version='1.0',
     lifespan=lifespan
 )
+
+app.add_middleware(CustomLogMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -82,7 +112,7 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
             detail='Incorrect username or password.',
             headers={'WWW-Authenticate': 'Bearer'}
         )
-    access_token = create_access_token(db_user.id)
+    access_token = create_access_token(db_user.id, db_user.username)
     return {'access_token': access_token, 'token_type': 'bearer', 'username': user.username}
 
 @app.get('/api/users/me', response_model=schemas.UserResponse)
