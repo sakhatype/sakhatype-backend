@@ -105,8 +105,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f'User with username {user.username} already exists.'
         )
-    crud.create_user(db, user)
-    return {'username': user.username}
+    return crud.create_user(db, user)
 
 @app.post('/api/auth/login', response_model=schemas.Token)
 def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
