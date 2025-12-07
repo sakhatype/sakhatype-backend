@@ -31,6 +31,29 @@ def authenticate_user(db: Session, username: str, password: str):
         return False
     return user
 
+def create_test_result(db: Session, id: int, result: schemas.TestResultCreate):
+    stmt = select(models.User).where(models.User.id == id)
+    user = db.scalar(stmt)
+    if user:
+        user.update_stats(result)
+
+    db_test_result = models.TestResult(
+        user_id=id,
+        time_mode=result.time_mode,
+        test_duration=result.test_duration,
+        wpm=result.wpm,
+        accuracy=result.accuracy,
+        raw_wpm=result.raw_wpm,
+        burst_wpm=result.burst_wpm,
+        consistency=result.consistency,
+        total_errors=result.total_errors
+    )
+
+    db.add(db_test_result)
+    db.commit()
+    db.refresh(db_test_result)
+    return db_test_result
+
 def get_user_results(db: Session, id: int, limit: int = 50):
     stmt = (
         select(models.TestResult)

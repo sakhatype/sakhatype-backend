@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlalchemy import String, DateTime, func, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from . import schemas
 
 class Base(DeclarativeBase):
     pass
@@ -25,6 +26,14 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     test_results: Mapped[list["TestResult"]] = relationship(back_populates="user")
+
+    def update_stats(self, result: schemas.TestResultCreate):
+        self.total_tests += 1
+        self.total_time_seconds += result.test_duration
+        self.best_wpm = max(self.best_wpm, result.wpm)
+        self.best_accuracy = max(self.best_accuracy, result.accuracy)
+        self.total_experience += int(result.wpm + result.accuracy)
+        self.level = 1 + (self.total_experience // 1000)
 
 class Word(Base):
     __tablename__ = 'words'
