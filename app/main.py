@@ -1,3 +1,4 @@
+import http
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -40,9 +41,13 @@ class CustomLogMiddleware(BaseHTTPMiddleware):
                     username = "Invalid-Token"
         response = await call_next(request)
         process_time = (time.time() - start_time) * 1000
+        try:
+            status_phrase = http.HTTPStatus(response.status_code).phrase
+        except ValueError:
+            status_phrase = ""
         logger.info(
             f"User: {username} | {request.method} {path} | "
-            f"{response.status_code} {response.status_phrase} | {process_time:.2f}ms"
+            f"{response.status_code} {status_phrase} | {process_time:.2f}ms"
         )
         return response
 
