@@ -113,3 +113,11 @@ def get_user_results(username: str, limit: int = 50, db: Session = Depends(get_d
 @app.get('/api/words', response_model=list[str])
 def get_words(limit: int = 200, db: Session = Depends(get_db)):
     return crud.get_words(db, limit)
+
+@app.get('/api/leaderboard/wpm', response_model=list[schemas.LeaderboardEntry])
+def get_leaderboard_wpm(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard_wpm(db, limit)
+
+@app.get('/api/leaderboard/accuracy', response_model=list[schemas.LeaderboardEntry])
+def get_leaderboard_accuracy(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard_accuracy(db, limit)

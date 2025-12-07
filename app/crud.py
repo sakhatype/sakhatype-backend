@@ -67,3 +67,21 @@ def get_user_results(db: Session, id: int, limit: int = 50):
 def get_words(db: Session, limit: int = 30):
     stmt = select(models.Word.word).order_by(func.random()).limit(limit)
     return db.scalars(stmt).all()
+
+def get_leaderboard_wpm(db: Session, limit: int = 100):
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests > 0)
+        .order_by(models.User.best_wpm.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
+
+def get_leaderboard_accuracy(db: Session, limit: int = 100):
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests > 0)
+        .order_by(models.User.best_accuracy.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()

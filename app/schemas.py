@@ -63,3 +63,17 @@ class TestResultResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+class LeaderboardEntry(BaseModel):
+    username: str
+
+    total_tests: int
+    best_wpm: float
+    best_accuracy: float
+    level: int
+
+    # бэкенд Айтала возвращает wpm и accuracy, поэтому возвращаем wpm и accuracy
+    wpm: float | None = None
+    accuracy: float | None = None
+
+    model_config = ConfigDict(from_attributes=True)
