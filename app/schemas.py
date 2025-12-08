@@ -1,7 +1,10 @@
 import re
 from datetime import datetime
 
+from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, ConfigDict
+from starlette import status
+
 
 class Token(BaseModel):
     access_token: str
@@ -15,10 +18,14 @@ class UserCreate(UserBase):
     password: str
 
     @field_validator('username')
-    def validate_username(cls, value):
+    @classmethod
+    def validate_username(cls, value: str):
         value = value.lower()
         if not re.match(r'^[a-z0-9]+$', value):
-            raise ValueError('Username format is invalid. Only a-z and 0-9 allowed.')
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Разрешаются только цифры и латинские буквы.'
+            )
         return value
 
 class UserRegisterResponse(UserBase):

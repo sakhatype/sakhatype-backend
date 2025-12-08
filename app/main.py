@@ -55,16 +55,16 @@ models.Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.getLogger("uvicorn.access").disabled = True
+    logging.getLogger('uvicorn.access').disabled = True
     try:
         db = SessionLocal()
         db.execute(text('SELECT 1'))
         db.close()
-        logger.info('Database is connected.')
+        logger.info('База данных подключена.')
     except Exception as error:
-        logger.error(f'Could not connect to database: {error}')
+        logger.error(f'Не получилось подключиться к базе данных: {error}')
     yield
-    logger.info('App is stopped.')
+    logger.info('Приложение остановлено.')
 
 app = FastAPI(
     title='Sakhatype',
@@ -87,14 +87,14 @@ async def db_connection_error_handler(request: Request, exception: OperationalEr
     logger.critical(f'Critical database error: {exception}')
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        content={'message': 'Service is temporarily unavailable.'}
+        content={'message': 'База данных временно недоступна.'}
     )
 
 @app.exception_handler(IntegrityError)
 async def db_integrity_error_handler(request: Request, exception: IntegrityError):
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
-        content={'message': 'Data error. Maybe this user already exists.'}
+        content={'message': 'Data error. Возможно этот пользователь уже существует.'}
     )
 
 @app.post('/api/auth/register', status_code=status.HTTP_201_CREATED, response_model=schemas.UserRegisterResponse)
@@ -103,7 +103,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'User with username {user.username} already exists.'
+            detail=f'Пользователь с именем {user.username} уже существует.'
         )
     return crud.create_user(db, user)
 
@@ -114,7 +114,7 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Incorrect username or password.',
+            detail='Неправильное имя или пароль.',
             headers={'WWW-Authenticate': 'Bearer'}
         )
     access_token = create_access_token(db_user.id, db_user.username)
@@ -124,14 +124,14 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 def get_current_user(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
     user = crud.get_user_by_id(db, id)
     if not user:
-        raise HTTPException(status_code=404, detail='User not found.')
+        raise HTTPException(status_code=404, detail='Пользователь не найден.')
     return user
 
 @app.get('/api/profile/{username}', response_model=schemas.UserResponse)
 def get_user_by_username(username: str, db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username)
     if not user:
-        raise HTTPException(status_code=404, detail='User not found.')
+        raise HTTPException(status_code=404, detail='Пользователь не найден.')
     return user
 
 @app.post('/api/results', response_model=schemas.TestResultResponse)
@@ -142,7 +142,7 @@ def save_test_result(result: schemas.TestResultCreate, id: int = Depends(get_cur
 def get_user_results(username: str, limit: int = 50, db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username)
     if not user:
-        raise HTTPException(status_code=404, detail='User not found.')
+        raise HTTPException(status_code=404, detail='Пользователь не найден.')
     return crud.get_user_results(db, user.id, limit)
 
 @app.get('/api/words', response_model=list[str])
