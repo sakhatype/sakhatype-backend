@@ -46,7 +46,7 @@ class CustomLogMiddleware(BaseHTTPMiddleware):
             status_phrase = ""
         log_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
         logger.info(
-            f"{log_timestamp} | User: {username} | {request.method} {path} | "
+            f"| {log_timestamp} | User: {username} | {request.method} {path} | "
             f"{response.status_code} {status_phrase}"
         )
         return response
