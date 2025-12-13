@@ -40,14 +40,14 @@ class CustomLogMiddleware(BaseHTTPMiddleware):
                 except Exception:
                     username = "Invalid-Token"
         response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
         try:
             status_phrase = http.HTTPStatus(response.status_code).phrase
         except ValueError:
             status_phrase = ""
+        log_timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time))
         logger.info(
-            f"User: {username} | {request.method} {path} | "
-            f"{response.status_code} {status_phrase} | {process_time:.2f}ms"
+            f"{log_timestamp} | User: {username} | {request.method} {path} | "
+            f"{response.status_code} {status_phrase}"
         )
         return response
 
@@ -102,7 +102,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
     if db_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f'Пользователь с именем {user.username} уже существует.'
         )
     return crud.create_user(db, user)
