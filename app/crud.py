@@ -64,7 +64,7 @@ def get_user_results(db: Session, id: int, limit: int = 50):
     )
     return db.scalars(stmt).all()
 
-def get_words(db: Session, limit: int = 30):
+def get_words(db: Session, limit: int = 200):
     stmt = select(models.Word.word).order_by(func.random()).limit(limit)
     return db.scalars(stmt).all()
 
@@ -82,6 +82,42 @@ def get_leaderboard_accuracy(db: Session, limit: int = 100):
         select(models.User)
         .where(models.User.total_tests > 0)
         .order_by(models.User.best_accuracy.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
+
+def get_leaderboard_15(db: Session, limit: int = 100):
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests_15 > 0)
+        .order_by(models.User.best_wpm_15.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
+
+def get_leaderboard_30(db: Session, limit: int = 100):
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests_30 > 0)
+        .order_by(models.User.best_wpm_30.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
+
+def get_leaderboard_60(db: Session, limit: int = 100):
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests_60 > 0)
+        .order_by(models.User.best_wpm_60.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
+
+def get_leaderboard_120(db: Session, limit: int = 100):
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests_120 > 0)
+        .order_by(models.User.best_wpm_120.desc())
         .limit(limit)
     )
     return db.scalars(stmt).all()

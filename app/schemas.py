@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, ConfigDict
 from starlette import status
 
-
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -33,9 +32,17 @@ class UserRegisterResponse(UserBase):
 
 class UserResponse(UserBase):
     total_tests: int
+    total_tests_15: int
+    total_tests_30: int
+    total_tests_60: int
+    total_tests_120: int
     total_time_seconds: int
     best_wpm: float
     best_accuracy: float
+    best_wpm_15: float
+    best_wpm_30: float
+    best_wpm_60: float
+    best_wpm_120: float
     total_experience: int
     level: int
 
@@ -75,8 +82,16 @@ class LeaderboardEntry(BaseModel):
     username: str
 
     total_tests: int
+    total_tests_15: int
+    total_tests_30: int
+    total_tests_60: int
+    total_tests_120: int
     best_wpm: float
     best_accuracy: float
+    best_wpm_15: float
+    best_wpm_30: float
+    best_wpm_60: float
+    best_wpm_120: float
     level: int
 
     # бэкенд Айтала возвращает wpm и accuracy, поэтому возвращаем wpm и accuracy

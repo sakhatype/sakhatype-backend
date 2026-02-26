@@ -8,7 +8,6 @@ from . import schemas
 class Base(DeclarativeBase):
     pass
 
-
 class User(Base):
     __tablename__ = 'users'
 
@@ -16,22 +15,42 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
 
-    total_tests: Mapped[int] = mapped_column(default=0, server_default="0")
-    total_time_seconds: Mapped[int] = mapped_column(default=0, server_default="0")
-    best_wpm: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
-    best_accuracy: Mapped[float] = mapped_column(default=0.0, server_default="0.0")
-    total_experience: Mapped[int] = mapped_column(default=0, server_default="0")
-    level: Mapped[int] = mapped_column(default=1, server_default="1")
+    total_tests: Mapped[int] = mapped_column(default=0, server_default='0')
+    total_tests_15: Mapped[int] = mapped_column(default=0, server_default='0')
+    total_tests_30: Mapped[int] = mapped_column(default=0, server_default='0')
+    total_tests_60: Mapped[int] = mapped_column(default=0, server_default='0')
+    total_tests_120: Mapped[int] = mapped_column(default=0, server_default='0')
+    total_time_seconds: Mapped[int] = mapped_column(default=0, server_default='0')
+    best_wpm: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
+    best_accuracy: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
+    best_wpm_15: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
+    best_wpm_30: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
+    best_wpm_60: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
+    best_wpm_120: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
+    total_experience: Mapped[int] = mapped_column(default=0, server_default='0')
+    level: Mapped[int] = mapped_column(default=1, server_default='1')
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    test_results: Mapped[list["TestResult"]] = relationship(back_populates="user")
+    test_results: Mapped[list['TestResult']] = relationship(back_populates='user')
 
     def update_stats(self, result: schemas.TestResultCreate):
         self.total_tests += 1
         self.total_time_seconds += result.test_duration
         self.best_wpm = max(self.best_wpm, result.wpm)
         self.best_accuracy = max(self.best_accuracy, result.accuracy)
+        if result.time_mode == 15:
+            self.total_tests_15 += 1
+            self.best_wpm_15 = max(self.best_wpm_15, result.wpm)
+        elif result.time_mode == 30:
+            self.total_tests_30 += 1
+            self.best_wpm_30 = max(self.best_wpm_30, result.wpm)
+        elif result.time_mode == 60:
+            self.total_tests_60 += 1
+            self.best_wpm_60 = max(self.best_wpm_60, result.wpm)
+        elif result.time_mode == 120:
+            self.total_tests_120 += 1
+            self.best_wpm_120 = max(self.best_wpm_120, result.wpm)
         self.total_experience += int(result.wpm + result.accuracy)
         self.level = 1 + (self.total_experience // 1000)
 
@@ -45,7 +64,7 @@ class TestResult(Base):
     __tablename__ = 'test_results'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
 
     time_mode: Mapped[int]
     test_duration: Mapped[int]
@@ -58,9 +77,9 @@ class TestResult(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    user: Mapped["User"] = relationship(back_populates="test_results")
+    user: Mapped['User'] = relationship(back_populates='test_results')
 
     # бэкенд Айтала возвращает username, поэтому возвращаем username
     @property
     def username(self) -> str:
-        return self.user.username if self.user else ""
+        return self.user.username if self.user else ''

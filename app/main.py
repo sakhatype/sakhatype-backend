@@ -149,10 +149,28 @@ def get_user_results(username: str, limit: int = 50, db: Session = Depends(get_d
 def get_words(limit: int = 200, db: Session = Depends(get_db)):
     return crud.get_words(db, limit)
 
+# пусть пока что остается
 @app.get('/api/leaderboard/wpm', response_model=list[schemas.LeaderboardEntry])
 def get_leaderboard_wpm(limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_leaderboard_wpm(db, limit)
 
+# пусть пока что остается
 @app.get('/api/leaderboard/accuracy', response_model=list[schemas.LeaderboardEntry])
 def get_leaderboard_accuracy(limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_leaderboard_accuracy(db, limit)
+
+@app.get('/api/leaderboard/15', response_model=list[schemas.LeaderboardEntry])
+def get_leaderboard_15(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard_15(db, limit)
+
+@app.get('/api/leaderboard/30', response_model=list[schemas.LeaderboardEntry])
+def get_leaderboard_30(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard_30(db, limit)
+
+@app.get('/api/leaderboard/60', response_model=list[schemas.LeaderboardEntry])
+def get_leaderboard_60(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard_60(db, limit)
+
+@app.get('/api/leaderboard/120', response_model=list[schemas.LeaderboardEntry])
+def get_leaderboard_120(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard_120(db, limit)
