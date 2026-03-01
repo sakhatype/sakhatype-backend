@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, select
 
-from . import models, schemas
+from . import models, enums, schemas
 from .auth import get_password_hash, verify_password
 
 def get_user_by_id(db: Session, id: int):
@@ -32,19 +32,21 @@ def authenticate_user(db: Session, username: str, password: str):
     return user
 
 def create_test_result(db: Session, id: int, result: schemas.TestResultCreate):
-    stmt = select(models.User).where(models.User.id == id)
+    stmt = select(models.User).where(models.User.id == id).options(joinedload(models.User.stats))
     user = db.scalar(stmt)
+
     if user:
-        user.update_stats(result)
+        user.update_stats(db, result)
 
     db_test_result = models.TestResult(
         user_id=id,
+        difficulty=result.difficulty,
         time_mode=result.time_mode,
         test_duration=result.test_duration,
         wpm=result.wpm,
-        accuracy=result.accuracy,
         raw_wpm=result.raw_wpm,
         burst_wpm=result.burst_wpm,
+        accuracy=result.accuracy,
         consistency=result.consistency,
         total_errors=result.total_errors
     )
@@ -86,38 +88,15 @@ def get_leaderboard_accuracy(db: Session, limit: int = 100):
     )
     return db.scalars(stmt).all()
 
-def get_leaderboard_15(db: Session, limit: int = 100):
+def get_leaderboard(db: Session, difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100):
     stmt = (
-        select(models.User)
-        .where(models.User.total_tests_15 > 0)
-        .order_by(models.User.best_wpm_15.desc())
+        select(models.UserStat)
+        .where(models.UserStat.difficulty == difficulty,
+               models.UserStat.time_mode == time_mode,
+               models.UserStat.total_tests > 0)
+        .options(joinedload(models.UserStat.user))
+        .order_by(models.UserStat.best_wpm.desc())
         .limit(limit)
     )
-    return db.scalars(stmt).all()
 
-def get_leaderboard_30(db: Session, limit: int = 100):
-    stmt = (
-        select(models.User)
-        .where(models.User.total_tests_30 > 0)
-        .order_by(models.User.best_wpm_30.desc())
-        .limit(limit)
-    )
-    return db.scalars(stmt).all()
-
-def get_leaderboard_60(db: Session, limit: int = 100):
-    stmt = (
-        select(models.User)
-        .where(models.User.total_tests_60 > 0)
-        .order_by(models.User.best_wpm_60.desc())
-        .limit(limit)
-    )
-    return db.scalars(stmt).all()
-
-def get_leaderboard_120(db: Session, limit: int = 100):
-    stmt = (
-        select(models.User)
-        .where(models.User.total_tests_120 > 0)
-        .order_by(models.User.best_wpm_120.desc())
-        .limit(limit)
-    )
     return db.scalars(stmt).all()

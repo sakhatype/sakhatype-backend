@@ -5,6 +5,8 @@ from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, ConfigDict
 from starlette import status
 
+from . import enums
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -20,43 +22,28 @@ class UserCreate(UserBase):
     @classmethod
     def validate_username(cls, value: str):
         value = value.lower()
+
         if not re.match(r'^[a-z0-9]+$', value):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Разрешаются только цифры и латинские буквы.'
             )
+
         return value
 
 class UserRegisterResponse(UserBase):
     pass
 
-class UserResponse(UserBase):
-    total_tests: int
-    total_tests_15: int
-    total_tests_30: int
-    total_tests_60: int
-    total_tests_120: int
-    total_time_seconds: int
-    best_wpm: float
-    best_accuracy: float
-    best_wpm_15: float
-    best_wpm_30: float
-    best_wpm_60: float
-    best_wpm_120: float
-    total_experience: int
-    level: int
-
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
 class TestResultCreate(BaseModel):
-    time_mode: int
+    difficulty: enums.Difficulty
+    time_mode: enums.TimeMode
     test_duration: int
+
     wpm: float
-    accuracy: float
     raw_wpm: float
     burst_wpm: float
+
+    accuracy: float
     consistency: float
     total_errors: int
 
@@ -65,12 +52,15 @@ class TestResultResponse(BaseModel):
     user_id: int
     username: str
 
-    time_mode: int
+    difficulty: enums.Difficulty
+    time_mode: enums.TimeMode
     test_duration: int
+
     wpm: float
-    accuracy: float
     raw_wpm: float
     burst_wpm: float
+
+    accuracy: float
     consistency: float
     total_errors: int
 
@@ -78,21 +68,39 @@ class TestResultResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class LeaderboardEntry(BaseModel):
+class UserStat(BaseModel):
     username: str
 
+    difficulty: enums.Difficulty
+    time_mode: enums.TimeMode
+
     total_tests: int
-    total_tests_15: int
-    total_tests_30: int
-    total_tests_60: int
-    total_tests_120: int
+    best_wpm: float
+
+class UserResponse(UserBase):
+    total_tests: int
     best_wpm: float
     best_accuracy: float
-    best_wpm_15: float
-    best_wpm_30: float
-    best_wpm_60: float
-    best_wpm_120: float
+
+    total_time_seconds: int
+    total_experience: int
     level: int
+
+    created_at: datetime
+
+    stats: list[UserStat]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class LeaderboardEntry(BaseModel):
+    username: str
+    level: int
+
+    total_tests: int
+    best_wpm: float
+
+    # пусть пока остается
+    best_accuracy: float | None
 
     # бэкенд Айтала возвращает wpm и accuracy, поэтому возвращаем wpm и accuracy
     wpm: float | None = None
