@@ -98,6 +98,8 @@ class User(Base):
                 time_mode=result.time_mode
             )
             db.add(stat)
+            db.commit()
+            db.refresh(stat)
             self.stats.append(stat)
 
         stat.total_tests += 1
