@@ -35,7 +35,7 @@ class UserRegisterResponse(UserBase):
     pass
 
 class TestResultCreate(BaseModel):
-    difficulty: enums.Difficulty
+    # difficulty: enums.Difficulty
     time_mode: enums.TimeMode
     test_duration: int
 
@@ -52,7 +52,7 @@ class TestResultResponse(BaseModel):
     user_id: int
     username: str
 
-    difficulty: enums.Difficulty
+    # difficulty: enums.Difficulty
     time_mode: enums.TimeMode
     test_duration: int
 
@@ -71,7 +71,7 @@ class TestResultResponse(BaseModel):
 class UserStat(BaseModel):
     username: str
 
-    difficulty: enums.Difficulty
+    # difficulty: enums.Difficulty
     time_mode: enums.TimeMode
 
     total_tests: int
