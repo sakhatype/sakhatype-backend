@@ -88,16 +88,17 @@ class User(Base):
         self.best_wpm = max(self.best_wpm, result.wpm)
         self.best_accuracy = max(self.best_accuracy, result.accuracy)
 
-        # stat = next((s for s in self.stats if s.time_mode == result.time_mode and s.difficulty == result.difficulty), None)
-        #
-        # if not stat:
-        #     stat = UserStat(
-        #         user_id=self.id,
-        #         difficulty=result.difficulty,
-        #         time_mode=result.time_mode
-        #     )
-        #     db.add(stat)
-        #     self.stats.append(stat)
-        #
-        # stat.total_tests += 1
-        # stat.best_wpm = max(stat.best_wpm, result.wpm)
+        stat = next((s for s in self.stats if s.time_mode == result.time_mode and s.difficulty == result.difficulty), None)
+
+        if not stat:
+            stat = UserStat(
+                user_id=self.id,
+                difficulty="normal",
+                # difficulty=result.difficulty,
+                time_mode=result.time_mode
+            )
+            db.add(stat)
+            self.stats.append(stat)
+
+        stat.total_tests += 1
+        stat.best_wpm = max(stat.best_wpm, result.wpm)

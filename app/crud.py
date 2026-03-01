@@ -40,6 +40,7 @@ def create_test_result(db: Session, id: int, result: schemas.TestResultCreate):
 
     db_test_result = models.TestResult(
         user_id=id,
+        difficulty="normal",
         # difficulty=result.difficulty,
         time_mode=result.time_mode,
         test_duration=result.test_duration,
