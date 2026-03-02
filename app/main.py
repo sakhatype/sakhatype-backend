@@ -173,13 +173,3 @@ def get_words(limit: int = 200, db: Session = Depends(get_db)):
 @app.get('/api/leaderboard/{difficulty}/{time_mode}', response_model=list[schemas.UserStat])
 def get_leaderboard(difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_leaderboard(db, difficulty, time_mode, limit)
-
-# пусть пока что остается
-@app.get('/api/leaderboard/wpm', response_model=list[schemas.LeaderboardEntry])
-def get_leaderboard_wpm(limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_leaderboard_wpm(db, limit)
-
-# пусть пока что остается
-@app.get('/api/leaderboard/accuracy', response_model=list[schemas.LeaderboardEntry])
-def get_leaderboard_accuracy(limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_leaderboard_accuracy(db, limit)
