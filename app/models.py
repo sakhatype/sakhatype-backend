@@ -1,21 +1,12 @@
 from datetime import datetime
 
 from sqlalchemy import String, DateTime, func, ForeignKey, Enum, Computed
-from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 
-from . import schemas, enums
-
+from . import schemas
 
 class Base(DeclarativeBase):
-    type_annotation_map = {
-        int: mapped_column(nullable=False),
-        str: mapped_column(nullable=False),
-        float: mapped_column(nullable=False),
-        datetime: mapped_column(nullable=False),
-        enums.Difficulty: mapped_column(nullable=False),
-        enums.TimeMode: mapped_column(nullable=False)
-    }
+    pass
 
 class Word(Base):
     __tablename__ = 'words'
@@ -31,8 +22,8 @@ class TestResult(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
 
-    difficulty: Mapped[enums.Difficulty] = mapped_column(Enum(enums.Difficulty))
-    time_mode: Mapped[enums.TimeMode] = mapped_column(Enum(enums.TimeMode))
+    difficulty: Mapped[str]
+    time_mode: Mapped[int]
     test_duration: Mapped[int]
 
     wpm: Mapped[float]
@@ -53,8 +44,8 @@ class UserStat(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
 
-    difficulty: Mapped[enums.Difficulty] = mapped_column(Enum(enums.Difficulty))
-    time_mode: Mapped[enums.TimeMode] = mapped_column(Enum(enums.TimeMode))
+    difficulty: Mapped[str]
+    time_mode: Mapped[int]
 
     total_tests: Mapped[int] = mapped_column(default=0, server_default='0')
     best_wpm: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
