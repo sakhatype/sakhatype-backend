@@ -105,7 +105,7 @@ async def db_connection_error_handler(request: Request, exception: OperationalEr
 async def db_integrity_error_handler(request: Request, exception: IntegrityError):
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
-        content={'message': 'Data error. Возможно этот пользователь уже существует.'}
+        content={'message': 'Возможно этот пользователь уже существует.'}
     )
 
 @app.post('/api/auth/register', status_code=status.HTTP_201_CREATED, response_model=schemas.UserRegisterResponse)
@@ -158,7 +158,7 @@ def save_test_result(result: schemas.TestResultCreate, id: int = Depends(get_cur
     return crud.create_test_result(db, id, result)
 
 @app.get('/api/results/user/{username}', response_model=list[schemas.TestResultResponse])
-def get_user_results(username: str, limit: int = 50, db: Session = Depends(get_db)):
+def get_user_results(username: str, limit: int = 25, db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username)
 
     if not user:
@@ -166,9 +166,9 @@ def get_user_results(username: str, limit: int = 50, db: Session = Depends(get_d
 
     return crud.get_user_results(db, user.id, limit)
 
-@app.get('/api/words', response_model=list[str])
-def get_words(limit: int = 200, db: Session = Depends(get_db)):
-    return crud.get_words(db, limit)
+@app.get('/api/words/{difficulty}', response_model=list[str])
+def get_words(difficulty: enums.Difficulty, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_words(db, difficulty, limit)
 
 @app.get('/api/leaderboard/{difficulty}/{time_mode}', response_model=list[schemas.UserStat])
 def get_leaderboard(difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100, db: Session = Depends(get_db)):
