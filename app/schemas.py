@@ -24,6 +24,7 @@ class UserCreate(UserBase):
         value = value.lower()
 
         if not re.match(r'^[a-z0-9]+$', value):
+            # по идее нельзя кидать http ошибку в schemas, но это потом-потом :)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Разрешаются только цифры и латинские буквы.'
@@ -35,7 +36,7 @@ class UserRegisterResponse(UserBase):
     pass
 
 class TestResultCreate(BaseModel):
-    # difficulty: enums.Difficulty
+    difficulty: enums.Difficulty
     time_mode: enums.TimeMode
     test_duration: int
 
@@ -48,11 +49,7 @@ class TestResultCreate(BaseModel):
     total_errors: int
 
 class TestResultResponse(BaseModel):
-    id: int
-    user_id: int
-    username: str
-
-    # difficulty: enums.Difficulty
+    difficulty: enums.Difficulty
     time_mode: enums.TimeMode
     test_duration: int
 
@@ -71,20 +68,22 @@ class TestResultResponse(BaseModel):
 class UserStat(BaseModel):
     username: str
 
-    # difficulty: enums.Difficulty
+    difficulty: enums.Difficulty
     time_mode: enums.TimeMode
 
     total_tests: int
     best_wpm: float
 
 class UserResponse(UserBase):
-    total_tests: int
-    best_wpm: float
-    best_accuracy: float
+    username: str
 
+    total_tests: int
     total_time_seconds: int
     total_experience: int
     level: int
+
+    best_wpm: float
+    best_accuracy: float
 
     created_at: datetime
 
@@ -98,12 +97,5 @@ class LeaderboardEntry(BaseModel):
 
     total_tests: int
     best_wpm: float
-
-    # пусть пока остается
-    best_accuracy: float | None
-
-    # бэкенд Айтала возвращает wpm и accuracy, поэтому возвращаем wpm и accuracy
-    wpm: float | None = None
-    accuracy: float | None = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, select
+from sqlalchemy import select, union_all
 
 from . import models, enums, schemas
 from .auth import get_password_hash, verify_password
@@ -40,8 +40,7 @@ def create_test_result(db: Session, id: int, result: schemas.TestResultCreate):
 
     db_test_result = models.TestResult(
         user_id=id,
-        difficulty="normal",
-        # difficulty=result.difficulty,
+        difficulty=result.difficulty,
         time_mode=result.time_mode,
         test_duration=result.test_duration,
         wpm=result.wpm,
@@ -57,36 +56,29 @@ def create_test_result(db: Session, id: int, result: schemas.TestResultCreate):
     db.refresh(db_test_result)
     return db_test_result
 
-def get_user_results(db: Session, id: int, limit: int = 50):
+def get_user_results(db: Session, id: int, limit: int = 25):
     stmt = (
         select(models.TestResult)
-        .options(joinedload(models.TestResult.user))
         .where(models.TestResult.user_id == id)
         .order_by(models.TestResult.created_at.desc())
         .limit(limit)
     )
     return db.scalars(stmt).all()
 
-def get_words(db: Session, limit: int = 200):
-    stmt = select(models.Word.word).order_by(func.random()).limit(limit)
-    return db.scalars(stmt).all()
-
-def get_leaderboard_wpm(db: Session, limit: int = 100):
-    stmt = (
-        select(models.User)
-        .where(models.User.total_tests > 0)
-        .order_by(models.User.best_wpm.desc())
-        .limit(limit)
+def get_words(db: Session, difficulty: enums.Difficulty, limit: int = 100):
+    normal_words = (
+        select(models.Word.word)
+        .where(models.Word.yakut_letters == 0)
+        .limit(int(limit * 0.75) if difficulty == 'normal' else int(limit * 0.25))
     )
-    return db.scalars(stmt).all()
 
-def get_leaderboard_accuracy(db: Session, limit: int = 100):
-    stmt = (
-        select(models.User)
-        .where(models.User.total_tests > 0)
-        .order_by(models.User.best_accuracy.desc())
-        .limit(limit)
+    hard_words = (
+        select(models.Word.word)
+        .where(models.Word.yakut_letters > 0)
+        .limit(int(limit * 0.25) if difficulty == 'normal' else int(limit * 0.75))
     )
+
+    stmt = union_all(normal_words, hard_words)
     return db.scalars(stmt).all()
 
 def get_leaderboard(db: Session, difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100):

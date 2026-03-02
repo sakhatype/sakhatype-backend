@@ -1,18 +1,29 @@
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, func, ForeignKey
+from sqlalchemy import String, DateTime, func, ForeignKey, Enum, Computed
+from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 
-from . import schemas
+from . import schemas, enums
+
 
 class Base(DeclarativeBase):
-    pass
+    type_annotation_map = {
+        int: mapped_column(nullable=False),
+        str: mapped_column(nullable=False),
+        float: mapped_column(nullable=False),
+        datetime: mapped_column(nullable=False),
+        enums.Difficulty: mapped_column(nullable=False),
+        enums.TimeMode: mapped_column(nullable=False)
+    }
 
 class Word(Base):
     __tablename__ = 'words'
 
     id: Mapped[int] = mapped_column(primary_key=True)
+
     word: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    yakut_letters: Mapped[int] = mapped_column(Computed('regexp_count(word, \'[ҥҕөһү]\', 1, \'i\')', persisted=True))
 
 class TestResult(Base):
     __tablename__ = 'test_results'
@@ -20,8 +31,8 @@ class TestResult(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
 
-    difficulty: Mapped[str]
-    time_mode: Mapped[int]
+    difficulty: Mapped[enums.Difficulty] = mapped_column(Enum(enums.Difficulty))
+    time_mode: Mapped[enums.TimeMode] = mapped_column(Enum(enums.TimeMode))
     test_duration: Mapped[int]
 
     wpm: Mapped[float]
@@ -36,19 +47,14 @@ class TestResult(Base):
 
     user: Mapped['User'] = relationship(back_populates='test_results')
 
-    # бэкенд Айтала возвращает username, поэтому возвращаем username
-    @property
-    def username(self) -> str:
-        return self.user.username if self.user else ''
-
 class UserStat(Base):
     __tablename__ = 'user_stats'
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
 
-    difficulty: Mapped[str]
-    time_mode: Mapped[int]
+    difficulty: Mapped[enums.Difficulty] = mapped_column(Enum(enums.Difficulty))
+    time_mode: Mapped[enums.TimeMode] = mapped_column(Enum(enums.TimeMode))
 
     total_tests: Mapped[int] = mapped_column(default=0, server_default='0')
     best_wpm: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
@@ -93,11 +99,11 @@ class User(Base):
         if not stat:
             stat = UserStat(
                 user_id=self.id,
-                difficulty="normal",
-                # difficulty=result.difficulty,
+                difficulty=result.difficulty,
                 time_mode=result.time_mode
             )
             db.add(stat)
+            # атомарность нарушена, но это потом :)
             db.commit()
             db.refresh(stat)
             self.stats.append(stat)
