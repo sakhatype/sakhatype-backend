@@ -2,6 +2,7 @@ import http
 import logging
 import time
 from contextlib import asynccontextmanager
+from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
@@ -78,7 +79,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title='Sakhatype',
-    version='1.0',
+    version='1.1',
     lifespan=lifespan
 )
 
@@ -108,6 +109,8 @@ async def db_integrity_error_handler(request: Request, exception: IntegrityError
         content={'message': 'Возможно этот пользователь уже существует.'}
     )
 
+# ===================== AUTH =====================
+
 @app.post('/api/auth/register', status_code=status.HTTP_201_CREATED, response_model=schemas.UserRegisterResponse)
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
@@ -135,6 +138,8 @@ def login(user: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
     access_token = create_access_token(db_user.id, db_user.username)
     return {'access_token': access_token, 'token_type': 'bearer', 'username': user.username}
 
+# ===================== USERS =====================
+
 @app.get('/api/users/me', response_model=schemas.UserResponse)
 def get_current_user(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
     user = crud.get_user_by_id(db, id)
@@ -153,6 +158,8 @@ def get_user_by_username(username: str, db: Session = Depends(get_db)):
 
     return user
 
+# ===================== RESULTS =====================
+
 @app.post('/api/results', response_model=schemas.TestResultResponse)
 def save_test_result(result: schemas.TestResultCreate, id: int = Depends(get_current_id), db: Session = Depends(get_db)):
     return crud.create_test_result(db, id, result)
@@ -166,10 +173,36 @@ def get_user_results(username: str, limit: int = 25, db: Session = Depends(get_d
 
     return crud.get_user_results(db, user.id, limit)
 
+# ===================== WORDS =====================
+
 @app.get('/api/words/{difficulty}', response_model=list[str])
 def get_words(difficulty: enums.Difficulty, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_words(db, difficulty, limit)
 
+# ===================== LEADERBOARD =====================
+
+# Лидерборд по difficulty + time_mode
 @app.get('/api/leaderboard/{difficulty}/{time_mode}', response_model=list[schemas.UserStat])
 def get_leaderboard(difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_leaderboard(db, difficulty, time_mode, limit)
+
+# Глобальный лидерборд (все пользователи по best_wpm)
+@app.get('/api/leaderboard/global', response_model=list[schemas.GlobalLeaderboardEntry])
+def get_global_leaderboard(limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_global_leaderboard(db, limit)
+
+# Ранг текущего пользователя в конкретном лидерборде
+@app.get('/api/leaderboard/rank/{difficulty}/{time_mode}', response_model=Optional[schemas.UserRank])
+def get_my_rank(difficulty: enums.Difficulty, time_mode: enums.TimeMode, id: int = Depends(get_current_id), db: Session = Depends(get_db)):
+    result = crud.get_user_rank(db, id, difficulty, time_mode)
+    if not result:
+        raise HTTPException(status_code=404, detail='Нет данных для этого режима.')
+    return result
+
+# Глобальный ранг текущего пользователя
+@app.get('/api/leaderboard/rank/global', response_model=Optional[schemas.UserRank])
+def get_my_global_rank(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
+    result = crud.get_user_global_rank(db, id)
+    if not result:
+        raise HTTPException(status_code=404, detail='Нет данных.')
+    return result

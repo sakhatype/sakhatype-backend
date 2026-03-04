@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, union_all
+from sqlalchemy import select, union_all, func, text
 
 from . import models, enums, schemas
 from .auth import get_password_hash, verify_password
@@ -66,16 +66,26 @@ def get_user_results(db: Session, id: int, limit: int = 25):
     return db.scalars(stmt).all()
 
 def get_words(db: Session, difficulty: enums.Difficulty, limit: int = 100):
+    """
+    Получить слова по сложности с рандомным порядком.
+    normal: 75% обычных слов + 25% с якутскими буквами
+    high: 25% обычных слов + 75% с якутскими буквами
+    """
+    normal_count = int(limit * 0.75) if difficulty == 'normal' else int(limit * 0.25)
+    hard_count = int(limit * 0.25) if difficulty == 'normal' else int(limit * 0.75)
+
     normal_words = (
         select(models.Word.word)
         .where(models.Word.yakut_letters == 0)
-        .limit(int(limit * 0.75) if difficulty == 'normal' else int(limit * 0.25))
+        .order_by(func.random())
+        .limit(normal_count)
     )
 
     hard_words = (
         select(models.Word.word)
         .where(models.Word.yakut_letters > 0)
-        .limit(int(limit * 0.25) if difficulty == 'normal' else int(limit * 0.75))
+        .order_by(func.random())
+        .limit(hard_count)
     )
 
     stmt = union_all(normal_words, hard_words)
@@ -93,3 +103,72 @@ def get_leaderboard(db: Session, difficulty: enums.Difficulty, time_mode: enums.
     )
 
     return db.scalars(stmt).all()
+
+def get_global_leaderboard(db: Session, limit: int = 100):
+    """Глобальный лидерборд по best_wpm пользователя (без фильтров)."""
+    stmt = (
+        select(models.User)
+        .where(models.User.total_tests > 0)
+        .order_by(models.User.best_wpm.desc())
+        .limit(limit)
+    )
+    return db.scalars(stmt).all()
+
+def get_user_rank(db: Session, user_id: int, difficulty: enums.Difficulty, time_mode: enums.TimeMode):
+    """Получить ранг пользователя в конкретном лидерборде."""
+    # Получаем stat пользователя
+    user_stat = db.scalar(
+        select(models.UserStat)
+        .where(
+            models.UserStat.user_id == user_id,
+            models.UserStat.difficulty == difficulty,
+            models.UserStat.time_mode == time_mode
+        )
+        .options(joinedload(models.UserStat.user))
+    )
+
+    if not user_stat or user_stat.total_tests == 0:
+        return None
+
+    # Считаем сколько пользователей имеют лучший WPM
+    count_better = db.scalar(
+        select(func.count())
+        .select_from(models.UserStat)
+        .where(
+            models.UserStat.difficulty == difficulty,
+            models.UserStat.time_mode == time_mode,
+            models.UserStat.total_tests > 0,
+            models.UserStat.best_wpm > user_stat.best_wpm
+        )
+    )
+
+    return {
+        'rank': (count_better or 0) + 1,
+        'username': user_stat.user.username,
+        'best_wpm': user_stat.best_wpm,
+        'total_tests': user_stat.total_tests,
+        'level': user_stat.user.level
+    }
+
+def get_user_global_rank(db: Session, user_id: int):
+    """Получить глобальный ранг пользователя."""
+    user = get_user_by_id(db, user_id)
+    if not user or user.total_tests == 0:
+        return None
+
+    count_better = db.scalar(
+        select(func.count())
+        .select_from(models.User)
+        .where(
+            models.User.total_tests > 0,
+            models.User.best_wpm > user.best_wpm
+        )
+    )
+
+    return {
+        'rank': (count_better or 0) + 1,
+        'username': user.username,
+        'best_wpm': user.best_wpm,
+        'total_tests': user.total_tests,
+        'level': user.level
+    }

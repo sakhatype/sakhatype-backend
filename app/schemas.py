@@ -24,7 +24,6 @@ class UserCreate(UserBase):
         value = value.lower()
 
         if not re.match(r'^[a-z0-9]+$', value):
-            # по идее нельзя кидать http ошибку в schemas, но это потом-потом :)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f'Разрешаются только цифры и латинские буквы.'
@@ -74,6 +73,8 @@ class UserStat(BaseModel):
     total_tests: int
     best_wpm: float
 
+    model_config = ConfigDict(from_attributes=True)
+
 class UserResponse(UserBase):
     username: str
 
@@ -97,5 +98,25 @@ class LeaderboardEntry(BaseModel):
 
     total_tests: int
     best_wpm: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Глобальный лидерборд (без фильтров difficulty/time_mode)
+class GlobalLeaderboardEntry(BaseModel):
+    username: str
+    level: int
+    total_tests: int
+    best_wpm: float
+    best_accuracy: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+# Ранг пользователя в лидерборде
+class UserRank(BaseModel):
+    rank: int
+    username: str
+    best_wpm: float
+    total_tests: int
+    level: int
 
     model_config = ConfigDict(from_attributes=True)
