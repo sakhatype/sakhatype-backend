@@ -1,20 +1,24 @@
 from datetime import datetime
 
-from sqlalchemy import String, DateTime, func, ForeignKey, Enum, Computed
+from sqlalchemy import String, DateTime, func, ForeignKey, Computed
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, Session
 
 from . import schemas
 
+
 class Base(DeclarativeBase):
     pass
+
 
 class Word(Base):
     __tablename__ = 'words'
 
     id: Mapped[int] = mapped_column(primary_key=True)
-
     word: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    yakut_letters: Mapped[int] = mapped_column(Computed('regexp_count(word, \'[ҥҕөһү]\', 1, \'i\')', persisted=True))
+    yakut_letters: Mapped[int] = mapped_column(
+        Computed("regexp_count(word, '[ҥҕөһү]', 1, 'i')", persisted=True)
+    )
+
 
 class TestResult(Base):
     __tablename__ = 'test_results'
@@ -34,9 +38,12 @@ class TestResult(Base):
     consistency: Mapped[float]
     total_errors: Mapped[int]
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     user: Mapped['User'] = relationship(back_populates='test_results')
+
 
 class UserStat(Base):
     __tablename__ = 'user_stats'
@@ -56,6 +63,11 @@ class UserStat(Base):
     def username(self) -> str:
         return self.user.username if self.user else ''
 
+    @property
+    def level(self) -> int:
+        return self.user.level if self.user else 1
+
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -71,21 +83,32 @@ class User(Base):
     best_wpm: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
     best_accuracy: Mapped[float] = mapped_column(default=0.0, server_default='0.0')
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     test_results: Mapped[list['TestResult']] = relationship(back_populates='user')
     stats: Mapped[list['UserStat']] = relationship(back_populates='user')
 
     def update_stats(self, db: Session, result: schemas.TestResultCreate):
+        # Обновляем общую статистику пользователя
         self.total_tests += 1
         self.total_time_seconds += result.test_duration
-        self.total_experience += int(result.wpm + result.accuracy)
+
+        # XP = wpm + accuracy за каждый тест
+        xp_gained = int(result.wpm + result.accuracy)
+        self.total_experience += xp_gained
         self.level = 1 + (self.total_experience // 1000)
 
         self.best_wpm = max(self.best_wpm, result.wpm)
         self.best_accuracy = max(self.best_accuracy, result.accuracy)
 
-        stat = next((s for s in self.stats if s.time_mode == result.time_mode and s.difficulty == result.difficulty), None)
+        # Ищем или создаём UserStat для данного difficulty+time_mode
+        stat = next(
+            (s for s in self.stats
+             if s.time_mode == result.time_mode and s.difficulty == result.difficulty),
+            None
+        )
 
         if not stat:
             stat = UserStat(
@@ -94,9 +117,7 @@ class User(Base):
                 time_mode=result.time_mode
             )
             db.add(stat)
-            # атомарность нарушена, но это потом :)
-            db.commit()
-            db.refresh(stat)
+            db.flush()  # flush вместо commit — остаёмся в той же транзакции
             self.stats.append(stat)
 
         stat.total_tests += 1
