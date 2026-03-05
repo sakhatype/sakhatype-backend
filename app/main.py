@@ -180,18 +180,23 @@ def get_words(difficulty: enums.Difficulty, limit: int = 100, db: Session = Depe
     return crud.get_words(db, difficulty, limit)
 
 # ===================== LEADERBOARD =====================
+# ВАЖНО: статические маршруты ПЕРЕД параметризованными!
+# Иначе FastAPI пытается разобрать "global" как значение {difficulty}
 
-# Лидерборд по difficulty + time_mode
-@app.get('/api/leaderboard/{difficulty}/{time_mode}', response_model=list[schemas.UserStat])
-def get_leaderboard(difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_leaderboard(db, difficulty, time_mode, limit)
-
-# Глобальный лидерборд (все пользователи по best_wpm)
+# 1. Глобальный лидерборд (без фильтров)
 @app.get('/api/leaderboard/global', response_model=list[schemas.GlobalLeaderboardEntry])
 def get_global_leaderboard(limit: int = 100, db: Session = Depends(get_db)):
     return crud.get_global_leaderboard(db, limit)
 
-# Ранг текущего пользователя в конкретном лидерборде
+# 2. Глобальный ранг текущего пользователя
+@app.get('/api/leaderboard/rank/global', response_model=Optional[schemas.UserRank])
+def get_my_global_rank(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
+    result = crud.get_user_global_rank(db, id)
+    if not result:
+        raise HTTPException(status_code=404, detail='Нет данных.')
+    return result
+
+# 3. Ранг текущего пользователя в конкретном режиме
 @app.get('/api/leaderboard/rank/{difficulty}/{time_mode}', response_model=Optional[schemas.UserRank])
 def get_my_rank(difficulty: enums.Difficulty, time_mode: enums.TimeMode, id: int = Depends(get_current_id), db: Session = Depends(get_db)):
     result = crud.get_user_rank(db, id, difficulty, time_mode)
@@ -199,10 +204,7 @@ def get_my_rank(difficulty: enums.Difficulty, time_mode: enums.TimeMode, id: int
         raise HTTPException(status_code=404, detail='Нет данных для этого режима.')
     return result
 
-# Глобальный ранг текущего пользователя
-@app.get('/api/leaderboard/rank/global', response_model=Optional[schemas.UserRank])
-def get_my_global_rank(id: int = Depends(get_current_id), db: Session = Depends(get_db)):
-    result = crud.get_user_global_rank(db, id)
-    if not result:
-        raise HTTPException(status_code=404, detail='Нет данных.')
-    return result
+# 4. Лидерборд по режиму (параметризованный — ПОСЛЕДНИЙ!)
+@app.get('/api/leaderboard/{difficulty}/{time_mode}', response_model=list[schemas.UserStat])
+def get_leaderboard(difficulty: enums.Difficulty, time_mode: enums.TimeMode, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_leaderboard(db, difficulty, time_mode, limit)
