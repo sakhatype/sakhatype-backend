@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
@@ -6,10 +7,18 @@ from app.api.routes import auth, typing, leaderboard, profile, arena
 
 settings = get_settings()
 
+
+@asynccontextmanager
+async def lifespan(app):
+    await connect_db()
+    yield
+    await disconnect_db()
+
+
 app = FastAPI(
-    title="DOTX TYPE API",
-    description="Sakha Language Typing Terminal - Backend API",
+    title="SAKHATYPE API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS
@@ -35,19 +44,9 @@ app.include_router(profile.router)
 app.include_router(arena.router)
 
 
-@app.on_event("startup")
-async def startup():
-    await connect_db()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await disconnect_db()
-
-
 @app.get("/")
 async def root():
-    return {"message": "DOTX TYPE API v1.0", "status": "online"}
+    return {"message": "SAKHATYPE API v1.0", "status": "online"}
 
 
 @app.get("/api/health")
