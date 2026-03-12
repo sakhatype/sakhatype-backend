@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: sakhatype-mongo
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+    networks:
+      - sakhatype
+
+  backend:
+    build: .
+    container_name: sakhatype-api
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - DATABASE_NAME=sakhatype
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-please}
+      - FRONTEND_URL=https://sakhatype.ru
+    depends_on:
+      - mongodb
+    networks:
+      - sakhatype
+
+volumes:
+  mongo_data:
+
+networks:
+  sakhatype:
+    driver: bridge

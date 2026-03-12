@@ -1,10 +1,6 @@
+__pycache__
+*.pyc
+.env
 .git
 .venv
-app/.idea
-app/__pycache__
-docs
-.dockerignore
-.env
-.gitignore
-Dockerfile
-Readme.md
+venv
