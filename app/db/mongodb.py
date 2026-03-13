@@ -1,8 +1,9 @@
 import shlex
-from urllib.parse import parse_qs, quote_plus, urlparse
+from urllib.parse import parse_qs, quote_plus, urlencode, urlparse, urlunparse
 
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from pymongo.errors import ServerSelectionTimeoutError
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -76,6 +77,21 @@ def _safe_mongo_target(mongodb_url: str) -> str:
     return parsed.netloc or "unknown-host"
 
 
+def _ensure_direct_connection(mongodb_url: str) -> str:
+    parsed = urlparse(mongodb_url)
+    if parsed.scheme != "mongodb":
+        return mongodb_url
+
+    query = parse_qs(parsed.query)
+    existing = (query.get("directConnection") or [""])[0].lower()
+    if existing in {"true", "1", "yes"}:
+        return mongodb_url
+
+    query["directConnection"] = ["true"]
+    rebuilt_query = urlencode(query, doseq=True)
+    return urlunparse(parsed._replace(query=rebuilt_query))
+
+
 async def connect_db():
     mongodb_url = _normalize_mongodb_url(settings.resolved_mongodb_url())
     print(f"Connecting to MongoDB: {_safe_mongo_target(mongodb_url)}")
@@ -88,13 +104,24 @@ async def connect_db():
     if _should_enable_tls(mongodb_url):
         client_kwargs["tlsCAFile"] = certifi.where()
 
-    database.client = AsyncIOMotorClient(mongodb_url, **client_kwargs)
-    database.db = database.client[settings.resolved_database_name()]
-
     try:
+        database.client = AsyncIOMotorClient(mongodb_url, **client_kwargs)
+        database.db = database.client[settings.resolved_database_name()]
+
         # Ping to verify connection
         await database.client.admin.command("ping")
         print("MongoDB ping OK")
+    except ServerSelectionTimeoutError as e:
+        fallback_url = _ensure_direct_connection(mongodb_url)
+        if fallback_url != mongodb_url:
+            print("MongoDB discovery failed, retrying with directConnection=true")
+            database.client = AsyncIOMotorClient(fallback_url, **client_kwargs)
+            database.db = database.client[settings.resolved_database_name()]
+            await database.client.admin.command("ping")
+            print("MongoDB ping OK (direct connection)")
+        else:
+            print(f"MongoDB connection failed: {type(e).__name__}: {e}")
+            raise
     except Exception as e:
         print(f"MongoDB connection failed: {type(e).__name__}: {e}")
         raise
