@@ -1,28 +1,31 @@
-version: "3.8"
-
 services:
   mongodb:
     image: mongo:7
-    container_name: sakhatype-mongo
-    restart: always
+    restart: unless-stopped
+    command: --bind_ip_all
     volumes:
       - mongo_data:/data/db
     ports:
-      - "127.0.0.1:27017:27017"
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     networks:
       - sakhatype
 
   backend:
-    build: .
-    container_name: sakhatype-api
-    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
-      - "80:80"
+      - "${APP_PORT:-80}:80"
+    env_file:
+      - .env
     environment:
-      - MONGODB_URL=mongodb://mongodb:27017
-      - DATABASE_NAME=sakhatype
+      - MONGODB_URL=${MONGODB_URL_DOCKER:-mongodb://mongodb:27017}
+      - DATABASE_NAME=${DATABASE_NAME:-sakhatype}
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production-please}
-      - FRONTEND_URL=https://sakhatype.ru
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
     depends_on:
       - mongodb
     networks:
