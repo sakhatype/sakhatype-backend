@@ -1,3 +1,4 @@
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.core.config import get_settings
 
@@ -13,17 +14,33 @@ database = Database()
 
 
 async def connect_db():
-    database.client = AsyncIOMotorClient(settings.mongodb_url)
+    print(f"Connecting to MongoDB...")
+
+    database.client = AsyncIOMotorClient(
+        settings.mongodb_url,
+        serverSelectionTimeoutMS=15000,
+        connectTimeoutMS=15000,
+        socketTimeoutMS=15000,
+        tlsCAFile=certifi.where(),
+    )
     database.db = database.client[settings.database_name]
 
-    # Create indexes
-    await database.db.users.create_index("username", unique=True)
-    await database.db.users.create_index("email", unique=True)
-    await database.db.results.create_index([("user_id", 1), ("created_at", -1)])
-    await database.db.results.create_index([("wpm", -1)])
-    await database.db.results.create_index([("mode", 1), ("mode_value", 1), ("wpm", -1)])
+    # Ping to verify connection
+    await database.client.admin.command("ping")
+    print("MongoDB ping OK")
 
-    print("Connected to MongoDB")
+    # Create indexes — don't crash if this fails
+    try:
+        await database.db.users.create_index("username", unique=True)
+        await database.db.users.create_index("email", unique=True)
+        await database.db.results.create_index([("user_id", 1), ("created_at", -1)])
+        await database.db.results.create_index([("wpm", -1)])
+        await database.db.results.create_index([("mode", 1), ("mode_value", 1), ("wpm", -1)])
+        print("Indexes created OK")
+    except Exception as e:
+        print(f"Warning: Index creation failed (non-fatal): {e}")
+
+    print(f"Connected to MongoDB: {settings.database_name}")
 
 
 async def disconnect_db():
