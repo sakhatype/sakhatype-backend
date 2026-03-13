@@ -72,7 +72,7 @@ def _safe_mongo_target(mongodb_url: str) -> str:
 
 
 async def connect_db():
-    mongodb_url = _normalize_mongodb_url(settings.mongodb_url)
+    mongodb_url = _normalize_mongodb_url(settings.resolved_mongodb_url())
     print(f"Connecting to MongoDB: {_safe_mongo_target(mongodb_url)}")
 
     client_kwargs = {
@@ -84,7 +84,7 @@ async def connect_db():
         client_kwargs["tlsCAFile"] = certifi.where()
 
     database.client = AsyncIOMotorClient(mongodb_url, **client_kwargs)
-    database.db = database.client[settings.database_name]
+    database.db = database.client[settings.resolved_database_name()]
 
     try:
         # Ping to verify connection
@@ -105,7 +105,7 @@ async def connect_db():
     except Exception as e:
         print(f"Warning: Index creation failed (non-fatal): {e}")
 
-    print(f"Connected to MongoDB: {settings.database_name}")
+    print(f"Connected to MongoDB: {settings.resolved_database_name()}")
 
 
 async def disconnect_db():
