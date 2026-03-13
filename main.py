@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.db.mongodb import connect_db, disconnect_db
@@ -29,6 +29,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def legacy_api_prefix_compat(request: Request, call_next):
+    path = request.scope.get("path", "")
+    legacy_prefixes = ("/typing", "/auth", "/leaderboard", "/profile", "/arena")
+
+    # Backward compatibility for clients calling old routes without "/api".
+    if not path.startswith("/api") and path.startswith(legacy_prefixes):
+        request.scope["path"] = f"/api{path}"
+
+    return await call_next(request)
 
 # Routes
 app.include_router(auth.router)
