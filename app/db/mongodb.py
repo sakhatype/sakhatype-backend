@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlparse
+
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from app.core.config import get_settings
@@ -13,21 +15,42 @@ class Database:
 database = Database()
 
 
-async def connect_db():
-    print(f"Connecting to MongoDB...")
+def _should_enable_tls(mongodb_url: str) -> bool:
+    if mongodb_url.startswith("mongodb+srv://"):
+        return True
 
-    database.client = AsyncIOMotorClient(
-        settings.mongodb_url,
-        serverSelectionTimeoutMS=15000,
-        connectTimeoutMS=15000,
-        socketTimeoutMS=15000,
-        tlsCAFile=certifi.where(),
-    )
+    parsed = urlparse(mongodb_url)
+    query = parse_qs(parsed.query)
+    tls_flag = (query.get("tls") or query.get("ssl") or ["false"])[0].lower()
+    return tls_flag in {"1", "true", "yes"}
+
+
+def _safe_mongo_target(mongodb_url: str) -> str:
+    parsed = urlparse(mongodb_url)
+    return parsed.netloc or "unknown-host"
+
+
+async def connect_db():
+    print(f"Connecting to MongoDB: {_safe_mongo_target(settings.mongodb_url)}")
+
+    client_kwargs = {
+        "serverSelectionTimeoutMS": 15000,
+        "connectTimeoutMS": 15000,
+        "socketTimeoutMS": 15000,
+    }
+    if _should_enable_tls(settings.mongodb_url):
+        client_kwargs["tlsCAFile"] = certifi.where()
+
+    database.client = AsyncIOMotorClient(settings.mongodb_url, **client_kwargs)
     database.db = database.client[settings.database_name]
 
-    # Ping to verify connection
-    await database.client.admin.command("ping")
-    print("MongoDB ping OK")
+    try:
+        # Ping to verify connection
+        await database.client.admin.command("ping")
+        print("MongoDB ping OK")
+    except Exception as e:
+        print(f"MongoDB connection failed: {type(e).__name__}: {e}")
+        raise
 
     # Create indexes — don't crash if this fails
     try:
