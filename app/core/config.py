@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     mongodb_url: str | None = None
+    mongodb_uri: str | None = None
     mongodb_host: str = "localhost"
     mongodb_port: int = 27017
     mongodb_username: str | None = None
@@ -26,8 +27,14 @@ class Settings(BaseSettings):
         return self.mongodb_dbname or self.database_name
 
     def resolved_mongodb_url(self) -> str:
-        if self.mongodb_url:
-            return self.mongodb_url
+        direct_url = (self.mongodb_url or self.mongodb_uri or "").strip()
+        if direct_url:
+            if (
+                direct_url.startswith("mongodb://")
+                or direct_url.startswith("mongodb+srv://")
+                or direct_url.startswith("mongosh")
+            ):
+                return direct_url
 
         db_name = self.resolved_database_name()
         if self.mongodb_username and self.mongodb_password:
