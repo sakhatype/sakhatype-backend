@@ -17,8 +17,10 @@ database = Database()
 
 
 def _extract_mongosh_arg(parts: list[str], key: str) -> str | None:
-    if key in parts:
-        idx = parts.index(key)
+    lowered = [p.lower() for p in parts]
+    key = key.lower()
+    if key in lowered:
+        idx = lowered.index(key)
         if idx + 1 < len(parts):
             return parts[idx + 1]
     return None
@@ -26,24 +28,27 @@ def _extract_mongosh_arg(parts: list[str], key: str) -> str | None:
 
 def _normalize_mongodb_url(raw_value: str) -> str:
     value = (raw_value or "").strip()
+
     if value.startswith("mongodb://") or value.startswith("mongodb+srv://"):
         return value
 
-    # Support users accidentally pasting the whole mongosh command as env value.
-    if value.startswith("mongosh "):
+    if value.startswith("mongosh"):
         try:
             parts = shlex.split(value)
-        except ValueError:
-            return value
+        except Exception as e:
+            raise ValueError(f"Invalid mongosh command in MONGODB_URL: {e}")
 
         host = _extract_mongosh_arg(parts, "--host")
         port = _extract_mongosh_arg(parts, "--port") or "27017"
         username = _extract_mongosh_arg(parts, "--username")
         password = _extract_mongosh_arg(parts, "--password")
-        auth_db = _extract_mongosh_arg(parts, "--authenticationDatabase") or "admin"
+        auth_db = (
+            _extract_mongosh_arg(parts, "--authenticationdatabase")
+            or "admin"
+        )
 
         if not host:
-            return value
+            raise ValueError("mongosh command is missing --host")
 
         if username and password:
             return (
@@ -53,7 +58,7 @@ def _normalize_mongodb_url(raw_value: str) -> str:
 
         return f"mongodb://{host}:{port}"
 
-    return value
+    raise ValueError("MONGODB_URL must be a MongoDB URI or a mongosh command")
 
 
 def _should_enable_tls(mongodb_url: str) -> bool:
