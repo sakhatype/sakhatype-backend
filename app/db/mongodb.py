@@ -1,4 +1,5 @@
-from urllib.parse import parse_qs, urlparse
+import shlex
+from urllib.parse import parse_qs, quote_plus, urlparse
 
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -13,6 +14,46 @@ class Database:
 
 
 database = Database()
+
+
+def _extract_mongosh_arg(parts: list[str], key: str) -> str | None:
+    if key in parts:
+        idx = parts.index(key)
+        if idx + 1 < len(parts):
+            return parts[idx + 1]
+    return None
+
+
+def _normalize_mongodb_url(raw_value: str) -> str:
+    value = (raw_value or "").strip()
+    if value.startswith("mongodb://") or value.startswith("mongodb+srv://"):
+        return value
+
+    # Support users accidentally pasting the whole mongosh command as env value.
+    if value.startswith("mongosh "):
+        try:
+            parts = shlex.split(value)
+        except ValueError:
+            return value
+
+        host = _extract_mongosh_arg(parts, "--host")
+        port = _extract_mongosh_arg(parts, "--port") or "27017"
+        username = _extract_mongosh_arg(parts, "--username")
+        password = _extract_mongosh_arg(parts, "--password")
+        auth_db = _extract_mongosh_arg(parts, "--authenticationDatabase") or "admin"
+
+        if not host:
+            return value
+
+        if username and password:
+            return (
+                f"mongodb://{quote_plus(username)}:{quote_plus(password)}"
+                f"@{host}:{port}/?authSource={quote_plus(auth_db)}"
+            )
+
+        return f"mongodb://{host}:{port}"
+
+    return value
 
 
 def _should_enable_tls(mongodb_url: str) -> bool:
@@ -31,17 +72,18 @@ def _safe_mongo_target(mongodb_url: str) -> str:
 
 
 async def connect_db():
-    print(f"Connecting to MongoDB: {_safe_mongo_target(settings.mongodb_url)}")
+    mongodb_url = _normalize_mongodb_url(settings.mongodb_url)
+    print(f"Connecting to MongoDB: {_safe_mongo_target(mongodb_url)}")
 
     client_kwargs = {
         "serverSelectionTimeoutMS": 15000,
         "connectTimeoutMS": 15000,
         "socketTimeoutMS": 15000,
     }
-    if _should_enable_tls(settings.mongodb_url):
+    if _should_enable_tls(mongodb_url):
         client_kwargs["tlsCAFile"] = certifi.where()
 
-    database.client = AsyncIOMotorClient(settings.mongodb_url, **client_kwargs)
+    database.client = AsyncIOMotorClient(mongodb_url, **client_kwargs)
     database.db = database.client[settings.database_name]
 
     try:
