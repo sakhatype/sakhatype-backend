@@ -53,7 +53,9 @@ class Settings(BaseSettings):
         default_origins = [
             self.frontend_url,
             "https://sakhatype.ru",
+            "https://www.sakhatype.ru",
             "http://sakhatype.ru",
+            "http://www.sakhatype.ru",
             "http://localhost:5173",
             "http://localhost:3000",
         ]
@@ -61,7 +63,16 @@ class Settings(BaseSettings):
             return default_origins
 
         parsed = [item.strip() for item in self.allowed_origins.split(",") if item.strip()]
-        return parsed or default_origins
+        if not parsed:
+            return default_origins
+
+        # Merge custom origins with sane defaults to avoid accidental CORS lockout
+        # in production when ALLOWED_ORIGINS is set without frontend domains.
+        merged: list[str] = []
+        for origin in [*parsed, *default_origins]:
+            if origin not in merged:
+                merged.append(origin)
+        return merged
 
 
 @lru_cache()
