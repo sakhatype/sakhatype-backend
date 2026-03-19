@@ -78,6 +78,11 @@ async def get_user_by_username(username: str) -> Optional[dict]:
     return await db.users.find_one({"username": username})
 
 
+async def get_user_by_email(email: str) -> Optional[dict]:
+    db = get_db()
+    return await db.users.find_one({"email": email})
+
+
 async def save_test_result(user_id: Optional[str], result_data: dict) -> dict:
     db = get_db()
     doc = {

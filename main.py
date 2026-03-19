@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
+import logging
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.core.config import get_settings
 from app.db.mongodb import connect_db, disconnect_db
 from app.api.routes import auth, typing, leaderboard, profile, arena
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -41,6 +44,15 @@ async def legacy_api_prefix_compat(request: Request, call_next):
         request.scope["path"] = f"/api{path}"
 
     return await call_next(request)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
 
 # Routes
 app.include_router(auth.router)

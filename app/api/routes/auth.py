@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, status
 from app.schemas.schemas import UserRegister, UserLogin, Token, UserPublic
-from app.services.user_service import create_user, authenticate_user, get_user_by_id, get_user_by_username, xp_for_next_level
+from app.services.user_service import create_user, authenticate_user, get_user_by_id, get_user_by_username, get_user_by_email, xp_for_next_level
 from app.core.security import create_access_token, get_current_user
 from fastapi import Depends
+from pymongo.errors import DuplicateKeyError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -33,7 +34,20 @@ async def register(data: UserRegister):
             detail="Username already taken",
         )
 
-    user = await create_user(data.username, data.email, data.password)
+    existing_email = await get_user_by_email(data.email)
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+
+    try:
+        user = await create_user(data.username, data.email, data.password)
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username or email already exists",
+        )
     token = create_access_token(data={"sub": str(user["_id"])})
     return Token(access_token=token, user=user_to_public(user))
 
