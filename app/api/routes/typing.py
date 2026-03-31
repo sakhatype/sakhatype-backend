@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/typing", tags=["typing"])
 
 @router.post("/words", response_model=WordsResponse)
 async def fetch_words(req: WordsRequest):
-    words = get_words(language=req.language, count=req.count)
+    words = get_words(language=req.language, count=req.count, difficulty=req.difficulty)
     return WordsResponse(words=words, language=req.language)
 
 

@@ -111,6 +111,7 @@ class ArenaRoom(BaseModel):
 class WordsRequest(BaseModel):
     language: str = "sakha"
     count: int = 50
+    difficulty: str = "normal"  # "normal" or "expert"
 
 
 class WordsResponse(BaseModel):

@@ -69,8 +69,35 @@ SAKHA_WORDS = [
 ]
 
 
-def get_words(language: str = "sakha", count: int = 50) -> List[str]:
-    """Саха тылларын таһаар."""
-    if count > len(SAKHA_WORDS):
-        return random.choices(SAKHA_WORDS, k=count)
-    return random.sample(SAKHA_WORDS, count)
+def _is_easy_word(word: str) -> bool:
+    """Easy words are short single-token words."""
+    return " " not in word and len(word) <= 5
+
+
+def _is_hard_word(word: str) -> bool:
+    """Hard words are longer words or multi-token phrases."""
+    return len(word) >= 7 or " " in word
+
+
+def _pick_words_from_pool(pool: List[str], count: int) -> List[str]:
+    if not pool:
+        return []
+    if count > len(pool):
+        return random.choices(pool, k=count)
+    return random.sample(pool, count)
+
+
+def get_words(language: str = "sakha", count: int = 50, difficulty: str = "normal") -> List[str]:
+    """Саха тылларын таһаар (сложностька көрө)."""
+    if language != "sakha":
+        return _pick_words_from_pool(SAKHA_WORDS, count)
+
+    easy_pool = [w for w in SAKHA_WORDS if _is_easy_word(w)]
+    hard_pool = [w for w in SAKHA_WORDS if _is_hard_word(w)]
+
+    if difficulty == "expert":
+        selected_pool = hard_pool or SAKHA_WORDS
+    else:
+        selected_pool = easy_pool or SAKHA_WORDS
+
+    return _pick_words_from_pool(selected_pool, count)
