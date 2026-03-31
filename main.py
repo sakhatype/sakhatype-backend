@@ -5,8 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
-from app.db.mongodb import connect_db, disconnect_db
-from app.api.routes import auth, typing, leaderboard, profile, arena
+from app.db.postgres import connect_db, disconnect_db
+from app.api.routes import auth, typing, leaderboard, profile, arena, friends
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ async def lifespan(app):
 
 app = FastAPI(
     title="SAKHATYPE API",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -37,9 +37,8 @@ app.add_middleware(
 @app.middleware("http")
 async def legacy_api_prefix_compat(request: Request, call_next):
     path = request.scope.get("path", "")
-    legacy_prefixes = ("/typing", "/auth", "/leaderboard", "/profile", "/arena")
+    legacy_prefixes = ("/typing", "/auth", "/leaderboard", "/profile", "/arena", "/friends")
 
-    # Backward compatibility for clients calling old routes without "/api".
     if not path.startswith("/api") and path.startswith(legacy_prefixes):
         request.scope["path"] = f"/api{path}"
 
@@ -67,11 +66,12 @@ app.include_router(typing.router)
 app.include_router(leaderboard.router)
 app.include_router(profile.router)
 app.include_router(arena.router)
+app.include_router(friends.router)
 
 
 @app.get("/")
 async def root():
-    return {"message": "SAKHATYPE API v1.0", "status": "online"}
+    return {"message": "SAKHATYPE API v2.0 (PostgreSQL)", "status": "online"}
 
 
 @app.get("/api/health")

@@ -1,16 +1,17 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from app.schemas.schemas import UserRegister, UserLogin, Token, UserPublic
-from app.services.user_service import create_user, authenticate_user, get_user_by_id, get_user_by_username, get_user_by_email, xp_for_next_level
+from app.services.user_service import (
+    create_user, authenticate_user, get_user_by_id,
+    get_user_by_username, get_user_by_email, xp_for_next_level,
+)
 from app.core.security import create_access_token, get_current_user
-from fastapi import Depends
-from pymongo.errors import DuplicateKeyError, PyMongoError
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def user_to_public(user: dict) -> UserPublic:
     return UserPublic(
-        id=str(user["_id"]),
+        id=str(user["id"]),
         username=user["username"],
         email=user["email"],
         level=user.get("level", 1),
@@ -20,7 +21,7 @@ def user_to_public(user: dict) -> UserPublic:
         best_wpm=user.get("best_wpm", 0),
         avg_wpm=user.get("avg_wpm", 0),
         avg_accuracy=user.get("avg_accuracy", 0),
-        achievements=user.get("achievements", []),
+        achievements=user.get("achievements") or [],
         created_at=user.get("created_at"),
     )
 
@@ -43,17 +44,14 @@ async def register(data: UserRegister):
             )
 
         user = await create_user(data.username, data.email, data.password)
-    except DuplicateKeyError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username or email already exists",
-        )
-    except (PyMongoError, RuntimeError):
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database is temporarily unavailable",
         )
-    token = create_access_token(data={"sub": str(user["_id"])})
+    token = create_access_token(data={"sub": str(user["id"])})
     return Token(access_token=token, user=user_to_public(user))
 
 
@@ -61,7 +59,7 @@ async def register(data: UserRegister):
 async def login(data: UserLogin):
     try:
         user = await authenticate_user(data.username, data.password)
-    except (PyMongoError, RuntimeError):
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database is temporarily unavailable",
@@ -71,7 +69,7 @@ async def login(data: UserLogin):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
-    token = create_access_token(data={"sub": str(user["_id"])})
+    token = create_access_token(data={"sub": str(user["id"])})
     return Token(access_token=token, user=user_to_public(user))
 
 

@@ -1,16 +1,13 @@
-FROM python:3.11.5-slim
+FROM python:3.13-slim
 
-WORKDIR /code
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PORT=80
+WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+ENV PORT=80
 EXPOSE 80
 
 CMD ["python", "main.py"]

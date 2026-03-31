@@ -1,20 +1,17 @@
 from functools import lru_cache
-from urllib.parse import quote_plus
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    mongodb_url: str | None = None
-    mongodb_uri: str | None = None
-    mongodb_host: str = "localhost"
-    mongodb_port: int = 27017
-    mongodb_username: str | None = None
-    mongodb_password: str | None = None
-    mongodb_dbname: str | None = None
-    mongodb_auth_source: str = "admin"
+    # PostgreSQL
+    postgres_url: str = "postgresql://localhost:5432/sakhatype"
+    postgres_host: str = "localhost"
+    postgres_port: int = 5432
+    postgres_user: str = "postgres"
+    postgres_password: str = ""
+    postgres_db: str = "sakhatype"
 
-    database_name: str = "dotx_type"
+    database_name: str = "sakhatype"
     secret_key: str = "your-super-secret-key-change-in-production"
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
@@ -24,30 +21,19 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     def resolved_database_name(self) -> str:
-        return self.mongodb_dbname or self.database_name
+        return self.postgres_db or self.database_name
 
-    def resolved_mongodb_url(self) -> str:
-        direct_url = (self.mongodb_url or self.mongodb_uri or "").strip()
-        if direct_url:
-            if (
-                direct_url.startswith("mongodb://")
-                or direct_url.startswith("mongodb+srv://")
-                or direct_url.startswith("mongosh")
-            ):
-                return direct_url
+    def resolved_postgres_dsn(self) -> str:
+        """Build asyncpg-compatible DSN."""
+        url = (self.postgres_url or "").strip()
+        if url and (url.startswith("postgresql://") or url.startswith("postgres://")):
+            return url
 
-        db_name = self.resolved_database_name()
-        if self.mongodb_username and self.mongodb_password:
-            username = quote_plus(self.mongodb_username)
-            password = quote_plus(self.mongodb_password)
-            auth_source = quote_plus(self.mongodb_auth_source)
-            return (
-                f"mongodb://{username}:{password}"
-                f"@{self.mongodb_host}:{self.mongodb_port}/{db_name}"
-                f"?authSource={auth_source}"
-            )
-
-        return f"mongodb://{self.mongodb_host}:{self.mongodb_port}"
+        password_part = f":{self.postgres_password}" if self.postgres_password else ""
+        return (
+            f"postgresql://{self.postgres_user}{password_part}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.resolved_database_name()}"
+        )
 
     def cors_origins(self) -> list[str]:
         default_origins = [
@@ -66,8 +52,6 @@ class Settings(BaseSettings):
         if not parsed:
             return default_origins
 
-        # Merge custom origins with sane defaults to avoid accidental CORS lockout
-        # in production when ALLOWED_ORIGINS is set without frontend domains.
         merged: list[str] = []
         for origin in [*parsed, *default_origins]:
             if origin not in merged:

@@ -31,8 +31,8 @@ async def submit_result(
     result_doc = saved["result"]
     return TestResultWithXP(
         result=TestResultResponse(
-            id=str(result_doc["_id"]),
-            user_id=result_doc.get("user_id"),
+            id=str(result_doc["id"]),
+            user_id=str(result_doc["user_id"]) if result_doc.get("user_id") else None,
             wpm=result_doc["wpm"],
             raw_wpm=result_doc["raw_wpm"],
             accuracy=result_doc["accuracy"],
@@ -66,7 +66,7 @@ async def get_history(
     results = await get_user_results(user_id, limit)
     return [
         {
-            "id": str(r["_id"]),
+            "id": str(r["id"]),
             "wpm": r["wpm"],
             "raw_wpm": r.get("raw_wpm", 0),
             "accuracy": r["accuracy"],

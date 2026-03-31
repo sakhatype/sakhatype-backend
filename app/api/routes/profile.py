@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.schemas.schemas import UserPublic
-from app.services.user_service import get_user_by_id, get_user_by_username, get_user_results, xp_for_next_level, ACHIEVEMENTS
+from app.services.user_service import (
+    get_user_by_id, get_user_by_username, get_user_results,
+    xp_for_next_level, ACHIEVEMENTS,
+)
 from app.core.security import get_current_user
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
@@ -18,9 +21,8 @@ async def get_profile(username: str):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    results = await get_user_results(str(user["_id"]), limit=100)
+    results = await get_user_results(str(user["id"]), limit=100)
 
-    # Build WPM history for graph
     wpm_history = [
         {
             "wpm": r["wpm"],
@@ -42,7 +44,7 @@ async def get_profile(username: str):
 
     return {
         "user": {
-            "id": str(user["_id"]),
+            "id": str(user["id"]),
             "username": user["username"],
             "level": user.get("level", 1),
             "xp": user.get("xp", 0),
@@ -51,8 +53,8 @@ async def get_profile(username: str):
             "best_wpm": user.get("best_wpm", 0),
             "avg_wpm": user.get("avg_wpm", 0),
             "avg_accuracy": user.get("avg_accuracy", 0),
-            "achievements": user.get("achievements", []),
-            "created_at": user.get("created_at", "").isoformat() if user.get("created_at") else None,
+            "achievements": user.get("achievements") or [],
+            "created_at": user["created_at"].isoformat() if user.get("created_at") else None,
         },
         "history": wpm_history,
     }

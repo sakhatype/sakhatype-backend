@@ -1,12 +1,15 @@
 services:
-  mongodb:
-    image: mongo:7
+  postgres:
+    image: postgres:16-alpine
     restart: unless-stopped
-    command: --bind_ip_all
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-sakhatype}
     volumes:
-      - mongo_data:/data/db
+      - pg_data:/var/lib/postgresql/data
     ports:
-      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     networks:
       - sakhatype
 
@@ -21,19 +24,19 @@ services:
     env_file:
       - .env
     environment:
-      - MONGODB_URL=${MONGODB_URL_DOCKER:-mongodb://mongodb:27017}
-      - DATABASE_NAME=${DATABASE_NAME:-sakhatype}
+      - POSTGRES_URL=${POSTGRES_URL_DOCKER:-postgresql://postgres:postgres@postgres:5432/sakhatype}
+      - POSTGRES_DB=${POSTGRES_DB:-sakhatype}
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production-please}
       - ALGORITHM=${ALGORITHM:-HS256}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
     depends_on:
-      - mongodb
+      - postgres
     networks:
       - sakhatype
 
 volumes:
-  mongo_data:
+  pg_data:
 
 networks:
   sakhatype:
