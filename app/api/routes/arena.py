@@ -4,6 +4,7 @@ from typing import Dict, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter(prefix="/api/arena", tags=["arena"])
+legacy_ws_router = APIRouter(prefix="/arena", tags=["arena"])
 
 # In-memory arena state
 rooms: Dict[str, dict] = {}
@@ -43,6 +44,7 @@ async def list_rooms():
 
 
 @router.websocket("/ws/{room_id}/{username}")
+@legacy_ws_router.websocket("/ws/{room_id}/{username}")
 async def arena_ws(websocket: WebSocket, room_id: str, username: str):
     if room_id not in rooms:
         await websocket.close(code=4004, reason="Room not found")

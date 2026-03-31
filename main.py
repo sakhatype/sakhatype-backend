@@ -66,6 +66,7 @@ app.include_router(typing.router)
 app.include_router(leaderboard.router)
 app.include_router(profile.router)
 app.include_router(arena.router)
+app.include_router(arena.legacy_ws_router)
 app.include_router(friends.router)
 
 

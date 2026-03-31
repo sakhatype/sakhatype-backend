@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="sah">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SakhaType | Өтө көрүү. Түргэн суруйуу.</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --main-color: #0070f3; /* Тот самый синий акцент */
+            --sub-color: #484f58;
+            --text-color: #c9d1d9;
+            --error-color: #f85149;
+            --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            overflow-y: hidden;
+        }
+
+        /* Header & Navigation */
+        header {
+            padding: 2rem 10%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: var(--main-color);
+            letter-spacing: -1px;
+        }
+
+        .nav-config {
+            display: flex;
+            gap: 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .config-item {
+            cursor: pointer;
+            color: var(--sub-color);
+            transition: color 0.2s;
+        }
+
+        .config-item.active, .config-item:hover {
+            color: var(--main-color);
+        }
+
+        /* Main Typing Area */
+        main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0 15%;
+        }
+
+        .stats-live {
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            color: var(--main-color);
+            margin-bottom: 1rem;
+            height: 1.5rem;
+        }
+
+        .words-container {
+            font-family: var(--font-mono);
+            font-size: 1.8rem;
+            line-height: 1.5;
+            height: 120px;
+            overflow: hidden;
+            position: relative;
+            text-align: justify;
+            user-select: none;
+        }
+
+        .word {
+            display: inline-block;
+            margin-right: 0.6rem;
+            color: var(--sub-color);
+        }
+
+        .letter.correct { color: var(--text-color); }
+        .letter.incorrect { color: var(--error-color); border-bottom: 2px solid var(--error-color); }
+        
+        /* Cursor logic */
+        .cursor {
+            width: 2px;
+            height: 1.6rem;
+            background-color: var(--main-color);
+            display: inline-block;
+            position: absolute;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* Footer Info */
+        footer {
+            padding: 2rem;
+            text-align: center;
+            color: var(--sub-color);
+            font-size: 0.8rem;
+        }
+
+        .hint {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+
+        /* Эффект при печати: скрываем лишнее */
+        .is-typing header, .is-typing footer {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">SakhaType</div>
+        <div class="nav-config">
+            <div class="config-group">
+                <span class="config-item active">тыллар</span>
+                <span class="config-item">бириэмэ</span>
+                <span class="config-item">цитаталар</span>
+            </div>
+            <div style="width: 1px; background: var(--sub-color); height: 15px; align-self: center;"></div>
+            <div class="config-group">
+                <span class="config-item">15</span>
+                <span class="config-item active">30</span>
+                <span class="config-item">60</span>
+                <span class="config-item">120</span>
+            </div>
+        </div>
+        <div class="user-nav">
+            <span class="config-item">киирии</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="stats-live" id="liveWpm">wpm: 0</div>
+        
+        <div class="words-container" id="wordsWrapper">
+            <span class="word"><span class="letter">үтүө</span></span>
+            <span class="word"><span class="letter">күнүнэн</span></span>
+            <span class="word"><span class="letter">сахалыы</span></span>
+            <span class="word"><span class="letter">суруйуу</span></span>
+            <span class="word"><span class="letter">күрэҕэ</span></span>
+            <span class="word"><span class="letter">түргэн</span></span>
+            <span class="word"><span class="letter">өй</span></span>
+            <span class="word"><span class="letter">хоту</span></span>
+            <span class="word"><span class="letter">кыайыы</span></span>
+            <span class="word"><span class="letter">эрэл</span></span>
+            <span class="word"><span class="letter">билии</span></span>
+        </div>
+    </main>
+
+    <footer>
+        <div>
+            <span class="hint">Tab</span> + <span class="hint">Enter</span> - хатылааһын
+        </div>
+        <div style="margin-top: 10px;">
+            SakhaType © 2026 | dotX Team
+        </div>
+    </footer>
+
+    <script>
+        // Простая логика для демонстрации исчезновения интерфейса
+        document.addEventListener('keydown', (e) => {
+            if (e.key.length === 1 || e.key === 'Backspace') {
+                document.body.classList.add('is-typing');
+            }
+            if (e.key === 'Escape') {
+                document.body.classList.remove('is-typing');
+            }
+        });
+    </script>
+</body>
+</html>
