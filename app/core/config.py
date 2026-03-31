@@ -1,10 +1,12 @@
 from functools import lru_cache
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # PostgreSQL
-    postgres_url: str = "postgresql://localhost:5432/sakhatype"
+    # PostgreSQL — accepts DATABASE_URL, POSTGRES_URL, or split vars
+    database_url: Optional[str] = None
+    postgres_url: Optional[str] = None
     postgres_host: str = "localhost"
     postgres_port: int = 5432
     postgres_user: str = "postgres"
@@ -16,18 +18,20 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
     frontend_url: str = "http://localhost:5173"
-    allowed_origins: str | None = None
+    allowed_origins: Optional[str] = None
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     def resolved_database_name(self) -> str:
         return self.postgres_db or self.database_name
 
     def resolved_postgres_dsn(self) -> str:
-        """Build asyncpg-compatible DSN."""
-        url = (self.postgres_url or "").strip()
-        if url and (url.startswith("postgresql://") or url.startswith("postgres://")):
-            return url
+        """Build asyncpg-compatible DSN. Checks DATABASE_URL first, then POSTGRES_URL, then split vars."""
+        # Priority: DATABASE_URL > POSTGRES_URL > split vars
+        for candidate in (self.database_url, self.postgres_url):
+            url = (candidate or "").strip()
+            if url and (url.startswith("postgresql://") or url.startswith("postgres://")):
+                return url
 
         password_part = f":{self.postgres_password}" if self.postgres_password else ""
         return (
