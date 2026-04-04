@@ -15,9 +15,8 @@
   • j ∈ {0,1}  — есть ли пробел (многословные цели сложнее для набора).
 
 Отбор:
-  • normal (легкий): только одно слово (без пробела), длина L ∈ [2, 7] (эффективная);
-    из выборки примерно ⌊count/3 + 0.5⌋ слов с ≥1 спецбуквой, остальные без спецбукв (~1 «особое» на 3 слова);
-    при нехватке — добор только повторениями из того же пула L∈[2,7] (длинные слова не подмешиваются).
+  • normal (легкий): L ∈ [2, 7]; слова с L>5 (6–7 букв) — не более ~12% выборки (редко);
+    ~⅓ слов с ≥1 спецбуквой; добор с теми же правилами длины/редкости длинных.
   • expert (сложный): пул с D ≥ D_expert_min; взвешенная выборка без повторов, вес ∝ D^γ
     (смещение к более трудным словам); при нехватке — ослабление порога.
 """
@@ -25,7 +24,7 @@
 from __future__ import annotations
 
 import random
-from typing import List, Optional, Set, Tuple
+from typing import List, Set, Tuple
 
 MAX_EFFECTIVE_LENGTH = 15
 YAKUT_SPECIAL = frozenset({"ҕ", "ҥ", "ө", "ү", "һ"})
@@ -40,9 +39,11 @@ D_EXPERT_MIN = 0.30
 D_EXPERT_MIN_RELAX = 0.22
 EXPERT_WEIGHT_POWER = 2.4
 
-# Лёгкий режим: короткие слова и редкие спецбуквы (~⅓ слов со спецсимволом)
+# Лёгкий режим: L∈[2,7]; L>5 встречаются редко; ~⅓ слов со спецбуквой
 NORMAL_EASY_LEN_MIN = 2
 NORMAL_EASY_LEN_MAX = 7
+NORMAL_EASY_SHORT_LEN_MAX = 5  # «короткие»; 6–7 букв — редкая доля
+NORMAL_LONG_WORD_MAX_FRACTION = 0.12  # не более ~12% слов с L>5
 NORMAL_SPECIAL_WORD_RATIO = 1.0 / 3.0
 
 
@@ -143,57 +144,90 @@ def _shuffle_in_place(xs: List) -> None:
         xs[i], xs[j] = xs[j], xs[i]
 
 
-def _pick_normal_easy_bounded(
-    raw: List[str],
-    count: int,
-    len_max: int,
-    exclude: Optional[Set[str]] = None,
-) -> List[str]:
-    """
-    Одно слово, L ∈ [2, len_max], без пробела; ~ratio слов с ≥1 спецбуквой, остальные без.
-    """
-    banned = exclude if exclude is not None else set()
-    eligible: List[Tuple[str, bool]] = []
-    for w in raw:
-        w = w.strip()
-        if not w or " " in w or w in banned:
-            continue
-        ln = effective_letter_count(w)
-        if not (NORMAL_EASY_LEN_MIN <= ln <= len_max):
-            continue
-        has_spec = count_yakut_special_chars(w) > 0
-        eligible.append((w, has_spec))
-
-    if not eligible:
+def _pick_from_spec_pairs(pairs: List[Tuple[str, bool]], count: int) -> List[str]:
+    """До count слов из пар (слово, есть_спецбуква); ~NORMAL_SPECIAL_WORD_RATIO со спецбуквой."""
+    if count <= 0 or not pairs:
         return []
-
-    no_sp = [w for w, h in eligible if not h]
-    wi_sp = [w for w, h in eligible if h]
+    no_sp = [w for w, h in pairs if not h]
+    wi_sp = [w for w, h in pairs if h]
     _shuffle_in_place(no_sp)
     _shuffle_in_place(wi_sp)
-
     spec_target = min(len(wi_sp), max(0, round(count * NORMAL_SPECIAL_WORD_RATIO)))
     plain_target = count - spec_target
-
     out: List[str] = []
     out.extend(wi_sp[:spec_target])
     out.extend(no_sp[:plain_target])
-
     used = set(out)
-    rest = [w for w, _ in eligible if w not in used]
+    rest = [w for w, _ in pairs if w not in used]
     _shuffle_in_place(rest)
     for w in rest:
         if len(out) >= count:
             break
         out.append(w)
-
     return out
 
 
-def _easy_vocab_split(raw: List[str]) -> Tuple[List[str], List[str]]:
-    """Уникальные слова L∈[2,7], без пробела: без спецбукв / со спецбуквой."""
-    no_sp: List[str] = []
-    wi_sp: List[str] = []
+def _build_short_long_pairs(raw: List[str]) -> Tuple[List[Tuple[str, bool]], List[Tuple[str, bool]]]:
+    short_p: List[Tuple[str, bool]] = []
+    long_p: List[Tuple[str, bool]] = []
+    for w in raw:
+        w = w.strip()
+        if not w or " " in w:
+            continue
+        ln = effective_letter_count(w)
+        if not (NORMAL_EASY_LEN_MIN <= ln <= NORMAL_EASY_LEN_MAX):
+            continue
+        has_spec = count_yakut_special_chars(w) > 0
+        if ln <= NORMAL_EASY_SHORT_LEN_MAX:
+            short_p.append((w, has_spec))
+        else:
+            long_p.append((w, has_spec))
+    return short_p, long_p
+
+
+def _pick_normal_easy_rare_long(raw: List[str], count: int) -> List[str]:
+    """
+    Лёгкий: в основном L≤5; слова с L>5 — не больше NORMAL_LONG_WORD_MAX_FRACTION от count.
+    """
+    short_pairs, long_pairs = _build_short_long_pairs(raw)
+    long_target = min(count, max(0, round(count * NORMAL_LONG_WORD_MAX_FRACTION)))
+    short_target = count - long_target
+
+    short_words = [w for w, _ in short_pairs]
+    long_words = [w for w, _ in long_pairs]
+
+    part_s = _pick_from_spec_pairs(short_pairs, short_target)
+    while len(part_s) < short_target:
+        if short_words:
+            part_s.append(random.choice(short_words))
+        elif long_words:
+            part_s.append(random.choice(long_words))
+        else:
+            break
+
+    part_l = _pick_from_spec_pairs(long_pairs, long_target)
+    while len(part_l) < long_target:
+        if long_words:
+            part_l.append(random.choice(long_words))
+        elif short_words:
+            part_l.append(random.choice(short_words))
+        else:
+            break
+
+    out = part_s + part_l
+    if len(out) > count:
+        out = out[:count]
+    return out
+
+
+def _easy_vocab_split_short_long(
+    raw: List[str],
+) -> Tuple[List[str], List[str], List[str], List[str]]:
+    """Уникальные L∈[2,7]: short без/со спецбуквой, long без/со спецбуквой."""
+    s_no: List[str] = []
+    s_yes: List[str] = []
+    l_no: List[str] = []
+    l_yes: List[str] = []
     seen: Set[str] = set()
     for w in raw:
         w = w.strip()
@@ -203,31 +237,57 @@ def _easy_vocab_split(raw: List[str]) -> Tuple[List[str], List[str]]:
         if not (NORMAL_EASY_LEN_MIN <= ln <= NORMAL_EASY_LEN_MAX):
             continue
         seen.add(w)
-        if count_yakut_special_chars(w) > 0:
-            wi_sp.append(w)
+        spec = count_yakut_special_chars(w) > 0
+        if ln <= NORMAL_EASY_SHORT_LEN_MAX:
+            (s_yes if spec else s_no).append(w)
         else:
-            no_sp.append(w)
-    return no_sp, wi_sp
+            (l_yes if spec else l_no).append(w)
+    return s_no, s_yes, l_no, l_yes
+
+
+def _pick_spec_from_vocab(no_sp: List[str], yes_sp: List[str]) -> str | None:
+    if yes_sp and no_sp:
+        return (
+            random.choice(yes_sp)
+            if random.random() < NORMAL_SPECIAL_WORD_RATIO
+            else random.choice(no_sp)
+        )
+    if no_sp:
+        return random.choice(no_sp)
+    if yes_sp:
+        return random.choice(yes_sp)
+    return None
 
 
 def _pad_normal_easy_to_count(picked: List[str], raw: List[str], count: int) -> None:
-    """Добирает до count только словами L∈[2,7]; ~⅓ слотов — со спецбуквой (если есть)."""
+    """Добор L∈[2,7]; редко L>5; ~⅓ со спецбуквой."""
     need = count - len(picked)
     if need <= 0:
         return
-    no_sp, wi_sp = _easy_vocab_split(raw)
-    if not no_sp and not wi_sp:
+    s_no, s_yes, l_no, l_yes = _easy_vocab_split_short_long(raw)
+    if not (s_no or s_yes or l_no or l_yes):
         return
+
+    long_cap = max(0, round(count * NORMAL_LONG_WORD_MAX_FRACTION))
+    long_in_picked = sum(
+        1
+        for w in picked
+        if NORMAL_EASY_SHORT_LEN_MAX < effective_letter_count(w) <= NORMAL_EASY_LEN_MAX
+    )
+
     for _ in range(need):
-        if wi_sp and no_sp:
-            if random.random() < NORMAL_SPECIAL_WORD_RATIO:
-                picked.append(random.choice(wi_sp))
-            else:
-                picked.append(random.choice(no_sp))
-        elif no_sp:
-            picked.append(random.choice(no_sp))
+        allow_long = long_in_picked < long_cap and (l_no or l_yes)
+        want_long = allow_long and random.random() < NORMAL_LONG_WORD_MAX_FRACTION
+        w: str | None
+        if want_long:
+            w = _pick_spec_from_vocab(l_no, l_yes) or _pick_spec_from_vocab(s_no, s_yes)
         else:
-            picked.append(random.choice(wi_sp))
+            w = _pick_spec_from_vocab(s_no, s_yes) or _pick_spec_from_vocab(l_no, l_yes)
+        if not w:
+            break
+        picked.append(w)
+        if NORMAL_EASY_SHORT_LEN_MAX < effective_letter_count(w) <= NORMAL_EASY_LEN_MAX:
+            long_in_picked += 1
 
 
 def pick_words_for_game_difficulty(words: List[str], game_difficulty: str, count: int) -> List[str]:
@@ -255,8 +315,8 @@ def pick_words_for_game_difficulty(words: List[str], game_difficulty: str, count
         extra = random.choices(words_only, weights=weights, k=count - len(first))
         return first + extra
 
-    # normal: только L∈[2,7], ~⅓ со спецбуквами; без подмешивания длинных слов
-    picked = _pick_normal_easy_bounded(raw, count, NORMAL_EASY_LEN_MAX)
+    # normal: L∈[2,7], редко L>5, ~⅓ со спецбуквами
+    picked = _pick_normal_easy_rare_long(raw, count)
     if len(picked) < count:
         _pad_normal_easy_to_count(picked, raw, count)
     if len(picked) < count and picked:
