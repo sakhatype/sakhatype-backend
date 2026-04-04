@@ -12,7 +12,12 @@ connections: Dict[str, Dict[str, WebSocket]] = {}  # room_id -> {user_id: ws}
 
 
 @router.post("/create")
-async def create_room(mode: str = "time", mode_value: int = 30, language: str = "sakha"):
+async def create_room(
+    mode: str = "time",
+    mode_value: int = 30,
+    language: str = "sakha",
+    difficulty: str = "normal",
+):
     room_id = str(uuid.uuid4())[:8]
     rooms[room_id] = {
         "room_id": room_id,
@@ -21,6 +26,7 @@ async def create_room(mode: str = "time", mode_value: int = 30, language: str = 
         "mode": mode,
         "mode_value": mode_value,
         "language": language,
+        "difficulty": difficulty if difficulty in ("normal", "expert") else "normal",
         "words": [],
     }
     connections[room_id] = {}
@@ -78,6 +84,7 @@ async def arena_ws(websocket: WebSocket, room_id: str, username: str):
                 words = get_words(
                     language=rooms[room_id]["language"],
                     count=100,
+                    difficulty=rooms[room_id].get("difficulty", "normal"),
                 )
                 rooms[room_id]["words"] = words
                 await broadcast(room_id, {

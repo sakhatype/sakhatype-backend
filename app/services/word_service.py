@@ -1,5 +1,6 @@
-import random
 from typing import List
+
+from app.services.word_difficulty import pick_words_for_game_difficulty
 
 # Саха (Якут) тыллара — бүтүн тыл баайа
 SAKHA_WORDS = [
@@ -69,35 +70,8 @@ SAKHA_WORDS = [
 ]
 
 
-def _is_easy_word(word: str) -> bool:
-    """Easy words are short single-token words."""
-    return " " not in word and len(word) <= 5
-
-
-def _is_hard_word(word: str) -> bool:
-    """Hard words are longer words or multi-token phrases."""
-    return len(word) >= 7 or " " in word
-
-
-def _pick_words_from_pool(pool: List[str], count: int) -> List[str]:
-    if not pool:
-        return []
-    if count > len(pool):
-        return random.choices(pool, k=count)
-    return random.sample(pool, count)
-
-
 def get_words(language: str = "sakha", count: int = 50, difficulty: str = "normal") -> List[str]:
-    """Саха тылларын таһаар (сложностька көрө)."""
+    """Саха тылларын таһаар: индекс D(w) и отбор как на фронте (word_difficulty)."""
     if language != "sakha":
-        return _pick_words_from_pool(SAKHA_WORDS, count)
-
-    easy_pool = [w for w in SAKHA_WORDS if _is_easy_word(w)]
-    hard_pool = [w for w in SAKHA_WORDS if _is_hard_word(w)]
-
-    if difficulty == "expert":
-        selected_pool = hard_pool or SAKHA_WORDS
-    else:
-        selected_pool = easy_pool or SAKHA_WORDS
-
-    return _pick_words_from_pool(selected_pool, count)
+        return pick_words_for_game_difficulty(SAKHA_WORDS, "normal", count)
+    return pick_words_for_game_difficulty(SAKHA_WORDS, difficulty, count)
