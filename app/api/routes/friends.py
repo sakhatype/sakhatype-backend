@@ -88,9 +88,12 @@ async def list_requests(user_id: str = Depends(get_current_user)):
 async def friends_leaderboard(
     mode: str = "time",
     mode_value: int = 30,
+    difficulty: str = "normal",
     user_id: str = Depends(get_current_user),
 ):
-    return await get_friends_leaderboard(user_id, mode, mode_value)
+    return await get_friends_leaderboard(
+        user_id, mode, mode_value, difficulty=difficulty
+    )
 
 
 @router.get("/status/{username}")

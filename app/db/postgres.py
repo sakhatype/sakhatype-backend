@@ -15,7 +15,7 @@ SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS users (
     id              SERIAL PRIMARY KEY,
     username        VARCHAR(30) NOT NULL UNIQUE,
-    email           VARCHAR(255) NOT NULL UNIQUE,
+    email           VARCHAR(255) UNIQUE,
     password_hash   TEXT NOT NULL,
     level           INTEGER NOT NULL DEFAULT 1,
     xp              INTEGER NOT NULL DEFAULT 0,
@@ -54,6 +54,8 @@ CREATE INDEX IF NOT EXISTS idx_results_wpm
     ON results (wpm DESC);
 CREATE INDEX IF NOT EXISTS idx_results_mode
     ON results (mode, mode_value, wpm DESC);
+CREATE INDEX IF NOT EXISTS idx_results_mode_difficulty_wpm
+    ON results (mode, mode_value, difficulty, wpm DESC);
 """
 
 
@@ -73,6 +75,9 @@ async def connect_db():
 
         async with database.pool.acquire() as conn:
             await conn.execute(SCHEMA_SQL)
+            await conn.execute(
+                "ALTER TABLE users ALTER COLUMN email DROP NOT NULL"
+            )
         print("Schema ensured OK")
 
     except Exception as e:

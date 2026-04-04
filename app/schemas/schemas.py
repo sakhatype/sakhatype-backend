@@ -1,13 +1,38 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
+
+
+def _normalize_optional_email(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+    s = str(v).strip().lower()
+    return s if s else None
+
+
+def _validate_email_if_set(v: Optional[str]) -> Optional[str]:
+    if v is None:
+        return None
+    if "@" not in v or "." not in v.split("@", 1)[-1]:
+        raise ValueError("Invalid email format")
+    return v
 
 
 # ── Auth ──
 class UserRegister(BaseModel):
     username: str = Field(..., min_length=3, max_length=20)
-    email: str
+    email: Optional[str] = None
     password: str = Field(..., min_length=6)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def register_email_blank(cls, v):
+        return _normalize_optional_email(v if isinstance(v, str) or v is None else str(v))
+
+    @field_validator("email")
+    @classmethod
+    def register_email_format(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_email_if_set(v)
 
 
 class UserLogin(BaseModel):
@@ -25,7 +50,7 @@ class Token(BaseModel):
 class UserPublic(BaseModel):
     id: str
     username: str
-    email: str
+    email: Optional[str] = None
     level: int = 1
     xp: int = 0
     xp_to_next: int = 500
@@ -38,8 +63,28 @@ class UserPublic(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    username: Optional[str] = None
+    username: Optional[str] = Field(None, min_length=3, max_length=30)
     email: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = Field(None, min_length=6)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def update_email_blank(cls, v):
+        if v is None:
+            return None
+        return _normalize_optional_email(v if isinstance(v, str) else str(v))
+
+    @field_validator("email")
+    @classmethod
+    def update_email_format(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_email_if_set(v)
+
+    @model_validator(mode="after")
+    def new_password_needs_current(self):
+        if self.new_password and not (self.current_password or "").strip():
+            raise ValueError("Current password is required to set a new password")
+        return self
 
 
 # ── Test Result ──
@@ -94,6 +139,7 @@ class LeaderboardEntry(BaseModel):
     accuracy: float
     language: str
     level: int = 1
+    difficulty: str = "normal"  # "normal" | "expert" — на какой сложности записан результат
 
 
 # ── Arena ──

@@ -13,7 +13,7 @@ def user_to_public(user: dict) -> UserPublic:
     return UserPublic(
         id=str(user["id"]),
         username=user["username"],
-        email=user["email"],
+        email=user.get("email"),
         level=user.get("level", 1),
         xp=user.get("xp", 0),
         xp_to_next=xp_for_next_level(user.get("level", 1)),
@@ -36,12 +36,13 @@ async def register(data: UserRegister):
                 detail="Username already taken",
             )
 
-        existing_email = await get_user_by_email(data.email)
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
-            )
+        if data.email:
+            existing_email = await get_user_by_email(data.email)
+            if existing_email:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered",
+                )
 
         user = await create_user(data.username, data.email, data.password)
     except HTTPException:

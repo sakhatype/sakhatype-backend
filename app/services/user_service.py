@@ -39,7 +39,7 @@ def xp_for_next_level(level: int) -> int:
     return level * 500
 
 
-async def create_user(username: str, email: str, password: str) -> dict:
+async def create_user(username: str, email: Optional[str], password: str) -> dict:
     pool = get_pool()
     row = await pool.fetchrow(
         """
@@ -79,9 +79,59 @@ async def get_user_by_username(username: str) -> Optional[dict]:
 
 
 async def get_user_by_email(email: str) -> Optional[dict]:
+    if not email or not str(email).strip():
+        return None
     pool = get_pool()
-    row = await pool.fetchrow("SELECT * FROM users WHERE email = $1", email)
+    row = await pool.fetchrow("SELECT * FROM users WHERE email = $1", email.strip().lower())
     return _row_to_dict(row)
+
+
+async def update_user_profile(
+    user_id: str,
+    fields: dict,
+    new_password: Optional[str] = None,
+    current_password: Optional[str] = None,
+) -> dict:
+    """
+    Apply profile updates. ``fields`` is UserUpdate.model_dump(exclude_unset=True) without password keys.
+    Raises ValueError with a user-facing message on conflict or bad password.
+    """
+    user = await get_user_by_id(user_id)
+    if not user:
+        raise ValueError("User not found")
+
+    uid = int(user_id)
+    pool = get_pool()
+
+    if "username" in fields:
+        new_username = fields["username"].strip()
+        if new_username != user["username"]:
+            taken = await get_user_by_username(new_username)
+            if taken and taken["id"] != uid:
+                raise ValueError("Username already taken")
+            await pool.execute(
+                "UPDATE users SET username = $1 WHERE id = $2", new_username, uid
+            )
+
+    if "email" in fields:
+        email = fields["email"]
+        if email != user.get("email"):
+            if email:
+                other = await get_user_by_email(email)
+                if other and other["id"] != uid:
+                    raise ValueError("Email already registered")
+            await pool.execute("UPDATE users SET email = $1 WHERE id = $2", email, uid)
+
+    if new_password:
+        if not verify_password(current_password or "", user["password_hash"]):
+            raise ValueError("Invalid current password")
+        await pool.execute(
+            "UPDATE users SET password_hash = $1 WHERE id = $2",
+            get_password_hash(new_password),
+            uid,
+        )
+
+    return await get_user_by_id(user_id)
 
 
 async def save_test_result(user_id: Optional[str], result_data: dict) -> dict:
@@ -224,21 +274,30 @@ async def get_user_results(user_id: str, limit: int = 50) -> List[dict]:
     return [_row_to_dict(r) for r in rows]
 
 
-async def get_leaderboard(mode: str = "time", mode_value: int = 30, limit: int = 50) -> List[dict]:
+async def get_leaderboard(
+    mode: str = "time",
+    mode_value: int = 30,
+    limit: int = 50,
+    difficulty: str = "normal",
+) -> List[dict]:
+    if difficulty not in ("normal", "expert"):
+        difficulty = "normal"
     pool = get_pool()
     rows = await pool.fetch(
         """
         SELECT DISTINCT ON (r.user_id)
                r.user_id, r.wpm AS best_wpm, r.accuracy AS best_accuracy,
-               u.username, u.level
+               u.username, u.level,
+               COALESCE(r.difficulty, 'normal') AS result_difficulty
         FROM results r
         JOIN users u ON u.id = r.user_id
         WHERE r.user_id IS NOT NULL
           AND r.mode = $1
           AND r.mode_value = $2
+          AND COALESCE(r.difficulty, 'normal') = $3
         ORDER BY r.user_id, r.wpm DESC
         """,
-        mode, mode_value,
+        mode, mode_value, difficulty,
     )
 
     # Sort by best_wpm descending and limit
@@ -254,6 +313,7 @@ async def get_leaderboard(mode: str = "time", mode_value: int = 30, limit: int =
             "accuracy": entry["best_accuracy"],
             "language": "sakha",
             "level": entry.get("level", 1),
+            "difficulty": entry.get("result_difficulty") or difficulty,
         })
 
     return leaderboard
@@ -399,7 +459,12 @@ async def get_friend_requests(user_id: str) -> dict:
     return {"incoming": incoming, "outgoing": outgoing}
 
 
-async def get_friends_leaderboard(user_id: str, mode: str = "time", mode_value: int = 30) -> List[dict]:
+async def get_friends_leaderboard(
+    user_id: str,
+    mode: str = "time",
+    mode_value: int = 30,
+    difficulty: str = "normal",
+) -> List[dict]:
     user = await get_user_by_id(user_id)
     if not user:
         return []
@@ -418,19 +483,24 @@ async def get_friends_leaderboard(user_id: str, mode: str = "time", mode_value: 
     if not int_ids:
         return []
 
+    if difficulty not in ("normal", "expert"):
+        difficulty = "normal"
+
     rows = await pool.fetch(
         """
         SELECT DISTINCT ON (r.user_id)
                r.user_id, r.wpm AS best_wpm, r.accuracy AS best_accuracy,
-               u.username, u.level
+               u.username, u.level,
+               COALESCE(r.difficulty, 'normal') AS result_difficulty
         FROM results r
         JOIN users u ON u.id = r.user_id
         WHERE r.user_id = ANY($1)
           AND r.mode = $2
           AND r.mode_value = $3
+          AND COALESCE(r.difficulty, 'normal') = $4
         ORDER BY r.user_id, r.wpm DESC
         """,
-        int_ids, mode, mode_value,
+        int_ids, mode, mode_value, difficulty,
     )
 
     sorted_rows = sorted(rows, key=lambda r: r["best_wpm"], reverse=True)
@@ -445,6 +515,7 @@ async def get_friends_leaderboard(user_id: str, mode: str = "time", mode_value: 
             "accuracy": entry["best_accuracy"],
             "language": "sakha",
             "level": entry.get("level", 1),
+            "difficulty": entry.get("result_difficulty") or difficulty,
         })
 
     return leaderboard
