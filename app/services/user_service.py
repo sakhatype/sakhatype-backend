@@ -36,7 +36,11 @@ def calculate_xp(wpm: float, accuracy: float, difficulty: str, mode: str, mode_v
 
 
 def xp_for_next_level(level: int) -> int:
-    return level * 500
+    # 100 XP/ур. для 1–5, 200 для 6–10, далее +100 каждые 5 уровней
+    if level < 1:
+        level = 1
+    bracket = (level - 1) // 5 + 1
+    return 100 * bracket
 
 
 async def create_user(username: str, email: Optional[str], password: str) -> dict:

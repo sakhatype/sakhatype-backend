@@ -53,7 +53,7 @@ class UserPublic(BaseModel):
     email: Optional[str] = None
     level: int = 1
     xp: int = 0
-    xp_to_next: int = 500
+    xp_to_next: int = 100
     total_tests: int = 0
     best_wpm: float = 0
     avg_wpm: float = 0
@@ -126,7 +126,7 @@ class TestResultWithXP(BaseModel):
     level_up: bool = False
     new_level: int = 1
     new_xp: int = 0
-    xp_to_next: int = 500
+    xp_to_next: int = 100
     new_achievements: List[str] = []
 
 
