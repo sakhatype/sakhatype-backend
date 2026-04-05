@@ -78,6 +78,9 @@ async def connect_db():
             await conn.execute(
                 "ALTER TABLE users ALTER COLUMN email DROP NOT NULL"
             )
+            await conn.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"
+            )
         print("Schema ensured OK")
 
     except Exception as e:

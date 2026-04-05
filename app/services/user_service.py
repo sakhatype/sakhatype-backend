@@ -496,6 +496,8 @@ async def get_leaderboard(
 
     leaderboard = []
     for rank, entry in enumerate(sorted_rows, 1):
+        raw_av = entry["avatar_url"]
+        avatar_url = (str(raw_av).strip() if raw_av is not None else "") or None
         leaderboard.append({
             "rank": rank,
             "user_id": str(entry["user_id"]),
@@ -503,9 +505,9 @@ async def get_leaderboard(
             "wpm": entry["best_wpm"],
             "accuracy": entry["best_accuracy"],
             "language": "sakha",
-            "level": entry.get("level", 1),
-            "difficulty": entry.get("result_difficulty") or difficulty,
-            "avatar_url": entry.get("avatar_url"),
+            "level": entry["level"],
+            "difficulty": entry["result_difficulty"] or difficulty,
+            "avatar_url": avatar_url,
         })
 
     return leaderboard
@@ -710,6 +712,8 @@ async def get_friends_leaderboard(
 
     leaderboard = []
     for rank, entry in enumerate(sorted_rows, 1):
+        raw_av = entry["avatar_url"]
+        avatar_url = (str(raw_av).strip() if raw_av is not None else "") or None
         leaderboard.append({
             "rank": rank,
             "user_id": str(entry["user_id"]),
@@ -717,9 +721,9 @@ async def get_friends_leaderboard(
             "wpm": entry["best_wpm"],
             "accuracy": entry["best_accuracy"],
             "language": "sakha",
-            "level": entry.get("level", 1),
-            "difficulty": entry.get("result_difficulty") or difficulty,
-            "avatar_url": entry.get("avatar_url"),
+            "level": entry["level"],
+            "difficulty": entry["result_difficulty"] or difficulty,
+            "avatar_url": avatar_url,
         })
 
     return leaderboard

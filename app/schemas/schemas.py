@@ -165,6 +165,7 @@ class LeaderboardEntry(BaseModel):
     language: str
     level: int = 1
     difficulty: str = "normal"  # "normal" | "expert" — на какой сложности записан результат
+    avatar_url: Optional[str] = None
 
 
 # ── Arena ──
