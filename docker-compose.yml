@@ -30,6 +30,9 @@ services:
       - ALGORITHM=${ALGORITHM:-HS256}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+    # Без тома файлы WebP теряются при recreate контейнера → в БД есть avatar_url, GET даёт 404.
+    volumes:
+      - avatar_uploads:/app/uploads/avatars
     depends_on:
       - postgres
     networks:
@@ -37,6 +40,7 @@ services:
 
 volumes:
   pg_data:
+  avatar_uploads:
 
 networks:
   sakhatype:
