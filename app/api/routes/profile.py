@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.schemas.schemas import UserUpdate
 from app.services.user_service import (
     get_user_by_id,
     get_user_by_username,
+    get_user_by_username_ci,
     get_user_contribution_results,
     get_user_tests_paginated,
     xp_for_next_level,
     ACHIEVEMENTS,
     update_user_profile,
-    update_user_avatar_url,
 )
-from app.services.avatar_storage import process_avatar_image, save_avatar_for_user
 from app.core.security import get_current_user
 from app.api.routes.auth import user_to_public
 
@@ -22,27 +23,6 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 async def get_all_achievements():
     """Get all possible achievements."""
     return ACHIEVEMENTS
-
-
-@router.post("/avatar")
-async def upload_avatar(
-    file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user),
-):
-    content = await file.read()
-    if len(content) > 8 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Файл слишком большой (макс. 8 МБ)")
-    try:
-        webp_bytes = process_avatar_image(content)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    url = save_avatar_for_user(user_id, webp_bytes)
-    await update_user_avatar_url(user_id, url)
-    user = await get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return {"avatar_url": url, "user": user_to_public(user)}
 
 
 @router.put("/update")
@@ -90,7 +70,7 @@ async def get_profile_tests(
     page: int = Query(1, ge=1),
     page_size: int = Query(40, description="40 | 60 | 120"),
 ):
-    user = await get_user_by_username(username)
+    user = await get_user_by_username_ci(username)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
@@ -111,8 +91,18 @@ async def get_profile_tests(
 
 
 @router.get("/{username}")
-async def get_profile(username: str):
-    user = await get_user_by_username(username)
+async def get_profile(
+    username: str,
+    tests_page: Optional[int] = Query(
+        None,
+        ge=1,
+        description="Если задан — в ответе будет блок tests (пагинация без отдельного URL /tests).",
+    ),
+    tests_page_size: int = Query(40, description="40 | 60 | 120"),
+    period: str = Query("all", description="all | 7d | 30d | 365d"),
+    mode: str = Query("all", description="all | time | words"),
+):
+    user = await get_user_by_username_ci(username)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
@@ -126,7 +116,7 @@ async def get_profile(username: str):
         for r in contrib
     ]
 
-    return {
+    payload = {
         "user": {
             "id": str(user["id"]),
             "username": user["username"],
@@ -143,3 +133,19 @@ async def get_profile(username: str):
         },
         "history": wpm_history,
     }
+
+    if tests_page is not None:
+        ps = tests_page_size if tests_page_size in (40, 60, 120) else 40
+        results, total = await get_user_tests_paginated(
+            str(user["id"]),
+            period=period,
+            mode=mode,
+            page=tests_page,
+            page_size=ps,
+        )
+        payload["tests"] = [_result_row_to_history_item(r) for r in results]
+        payload["total"] = total
+        payload["page"] = tests_page
+        payload["page_size"] = ps
+
+    return payload

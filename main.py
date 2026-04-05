@@ -2,17 +2,22 @@ from contextlib import asynccontextmanager
 import logging
 import os
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from app.core.validation_errors_ru import format_validation_errors_detail
 import uvicorn
 from app.db.postgres import connect_db, disconnect_db
 from app.api.routes import auth, typing, leaderboard, profile, arena, friends
+from app.core.paths import AVATAR_UPLOAD_DIR
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app):
+    AVATAR_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     await connect_db()
     yield
     await disconnect_db()
@@ -23,6 +28,13 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    message = format_validation_errors_detail(exc.errors())
+    return JSONResponse(status_code=422, content={"detail": message})
+
 
 # CORS
 app.add_middleware(
@@ -48,7 +60,7 @@ async def legacy_api_prefix_compat(request: Request, call_next):
         logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error"},
+            content={"detail": "Внутренняя ошибка сервера"},
         )
 
 
@@ -57,7 +69,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"detail": "Внутренняя ошибка сервера"},
     )
 
 # Routes
@@ -68,6 +80,12 @@ app.include_router(profile.router)
 app.include_router(arena.router)
 app.include_router(arena.legacy_ws_router)
 app.include_router(friends.router)
+
+app.mount(
+    "/api/uploads/avatars",
+    StaticFiles(directory=str(AVATAR_UPLOAD_DIR)),
+    name="avatar_uploads",
+)
 
 
 @app.get("/")

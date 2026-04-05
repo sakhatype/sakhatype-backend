@@ -82,6 +82,16 @@ async def get_user_by_username(username: str) -> Optional[dict]:
     return _row_to_dict(row)
 
 
+async def get_user_by_username_ci(username: str) -> Optional[dict]:
+    """Как get_user_by_username, но без учёта регистра (для публичных URL профиля)."""
+    pool = get_pool()
+    row = await pool.fetchrow(
+        "SELECT * FROM users WHERE lower(username) = lower($1)",
+        (username or "").strip(),
+    )
+    return _row_to_dict(row)
+
+
 async def get_user_by_email(email: str) -> Optional[dict]:
     if not email or not str(email).strip():
         return None
