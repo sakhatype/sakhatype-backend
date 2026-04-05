@@ -103,6 +103,6 @@ async def upload_avatar(
     except ValueError as e:
         msg = str(e)
         if msg == "Пользователь не найден":
-            raise HTTPException(status_code=404, detail=msg) from e
+            raise HTTPException(status_code=400, detail=msg) from e
         raise HTTPException(status_code=400, detail=msg) from e
     return {"avatar_url": data["avatar_url"], "user": user_to_public(data["user"])}

@@ -164,7 +164,7 @@ async def update_user_avatar_url(user_id: str, avatar_url: str) -> None:
 async def apply_avatar_upload(user_id: str, content: bytes) -> Dict[str, Any]:
     """
     Обработка файла аватара: WebP 128×128, запись на диск, UPDATE users.
-    ValueError — текст для HTTP 400; «Пользователь не найден» — отдать как 404 в роуте.
+    ValueError — текст для HTTP 400; «Пользователь не найден» после записи файла — тоже 400 в роуте.
     """
     if len(content) > _AVATAR_UPLOAD_MAX_BYTES:
         raise ValueError("Файл слишком большой (макс. 8 МБ)")

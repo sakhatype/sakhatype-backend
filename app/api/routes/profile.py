@@ -34,7 +34,7 @@ async def _do_avatar_upload(file: UploadFile, user_id: str) -> dict:
     except ValueError as e:
         msg = str(e)
         if msg == "Пользователь не найден":
-            raise HTTPException(status_code=404, detail=msg) from e
+            raise HTTPException(status_code=400, detail=msg) from e
         raise HTTPException(status_code=400, detail=msg) from e
     return {"avatar_url": data["avatar_url"], "user": user_to_public(data["user"])}
 
@@ -44,19 +44,19 @@ async def upload_my_avatar(
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
 ):
-    """
-    Загрузка аватара. Дубликат без вложенного пути: POST /api/profile/upload-avatar
-    (не /avatar — иначе при отсутствии POST на проде Starlette отдаёт 405 из-за GET /{username}).
-    """
+    """Загрузка аватара (два сегмента пути — часть прокси режет)."""
     return await _do_avatar_upload(file, user_id)
 
 
-@router.post("/upload-avatar")
-async def upload_my_avatar_one_segment(
+@router.post("/_/avatar")
+async def upload_my_avatar_safe_path(
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
 ):
-    """Один сегмент после /profile/, без конфликта с GET /api/profile/{username}."""
+    """
+    Тот же upload, путь /api/profile/_/avatar — не пересекается с GET /api/profile/{username}
+    (в отличие от POST …/upload-avatar, который даёт 405: путь совпадает с профилем user «upload-avatar»).
+    """
     return await _do_avatar_upload(file, user_id)
 
 

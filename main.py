@@ -81,6 +81,8 @@ app.include_router(arena.router)
 app.include_router(arena.legacy_ws_router)
 app.include_router(friends.router)
 
+# До lifespan: StaticFiles падает при импорте, если каталога нет (Docker / чистый деплой).
+AVATAR_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount(
     "/api/uploads/avatars",
     StaticFiles(directory=str(AVATAR_UPLOAD_DIR)),
