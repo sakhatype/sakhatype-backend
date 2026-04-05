@@ -74,7 +74,12 @@ async def get_history(
             "mode_value": r["mode_value"],
             "language": r["language"],
             "difficulty": r.get("difficulty", "normal"),
+            "chars_correct": r.get("chars_correct", 0),
+            "chars_incorrect": r.get("chars_incorrect", 0),
+            "chars_extra": r.get("chars_extra", 0),
+            "chars_missed": r.get("chars_missed", 0),
             "created_at": r["created_at"].isoformat(),
+            "timestamp": r["created_at"].isoformat(),
         }
         for r in results
     ]

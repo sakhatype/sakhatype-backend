@@ -101,6 +101,30 @@ class TestResultCreate(BaseModel):
     chars_extra: int = 0
     chars_missed: int = 0
 
+    @field_validator("mode", mode="before")
+    @classmethod
+    def normalize_mode(cls, v):
+        if v is None:
+            raise ValueError("Укажите режим (time или words)")
+        s = str(v).strip().lower()
+        if s not in ("time", "words"):
+            raise ValueError('Режим должен быть "time" или "words"')
+        return s
+
+    @field_validator("difficulty", mode="before")
+    @classmethod
+    def normalize_difficulty(cls, v):
+        s = str(v or "normal").strip().lower()
+        return s if s in ("normal", "expert") else "normal"
+
+    @model_validator(mode="after")
+    def mode_value_allowed(self):
+        if self.mode == "time" and self.mode_value not in (15, 30, 60):
+            raise ValueError("Для режима time допустимы только 15, 30 или 60 секунд")
+        if self.mode == "words" and self.mode_value not in (10, 25, 50):
+            raise ValueError("Для режима words допустимо только 10, 25 или 50 слов")
+        return self
+
 
 class TestResultResponse(BaseModel):
     id: str

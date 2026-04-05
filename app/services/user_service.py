@@ -284,6 +284,9 @@ async def get_leaderboard(
     limit: int = 50,
     difficulty: str = "normal",
 ) -> List[dict]:
+    m = (mode or "time").strip().lower()
+    if m not in ("time", "words"):
+        m = "time"
     if difficulty not in ("normal", "expert"):
         difficulty = "normal"
     pool = get_pool()
@@ -301,7 +304,7 @@ async def get_leaderboard(
           AND COALESCE(r.difficulty, 'normal') = $3
         ORDER BY r.user_id, r.wpm DESC
         """,
-        mode, mode_value, difficulty,
+        m, mode_value, difficulty,
     )
 
     # Sort by best_wpm descending and limit
