@@ -33,7 +33,7 @@ async def register(data: UserRegister):
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already taken",
+                detail="Это имя пользователя уже занято",
             )
 
         if data.email:
@@ -41,7 +41,7 @@ async def register(data: UserRegister):
             if existing_email:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered",
+                    detail="Этот email уже зарегистрирован",
                 )
 
         user = await create_user(data.username, data.email, data.password)
@@ -50,7 +50,7 @@ async def register(data: UserRegister):
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database is temporarily unavailable",
+            detail="База данных временно недоступна",
         )
     token = create_access_token(data={"sub": str(user["id"])})
     return Token(access_token=token, user=user_to_public(user))
@@ -63,12 +63,12 @@ async def login(data: UserLogin):
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database is temporarily unavailable",
+            detail="База данных временно недоступна",
         )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
+            detail="Неверный логин или пароль",
         )
     token = create_access_token(data={"sub": str(user["id"])})
     return Token(access_token=token, user=user_to_public(user))
@@ -78,5 +78,5 @@ async def login(data: UserLogin):
 async def get_me(user_id: str = Depends(get_current_user)):
     user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
     return user_to_public(user)

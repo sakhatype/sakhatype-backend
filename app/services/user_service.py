@@ -102,7 +102,7 @@ async def update_user_profile(
     """
     user = await get_user_by_id(user_id)
     if not user:
-        raise ValueError("User not found")
+        raise ValueError("Пользователь не найден")
 
     uid = int(user_id)
     pool = get_pool()
@@ -112,7 +112,7 @@ async def update_user_profile(
         if new_username != user["username"]:
             taken = await get_user_by_username(new_username)
             if taken and taken["id"] != uid:
-                raise ValueError("Username already taken")
+                raise ValueError("Это имя пользователя уже занято")
             await pool.execute(
                 "UPDATE users SET username = $1 WHERE id = $2", new_username, uid
             )
@@ -123,12 +123,12 @@ async def update_user_profile(
             if email:
                 other = await get_user_by_email(email)
                 if other and other["id"] != uid:
-                    raise ValueError("Email already registered")
+                    raise ValueError("Этот email уже зарегистрирован")
             await pool.execute("UPDATE users SET email = $1 WHERE id = $2", email, uid)
 
     if new_password:
         if not verify_password(current_password or "", user["password_hash"]):
-            raise ValueError("Invalid current password")
+            raise ValueError("Неверный текущий пароль")
         await pool.execute(
             "UPDATE users SET password_hash = $1 WHERE id = $2",
             get_password_hash(new_password),
@@ -332,16 +332,16 @@ async def send_friend_request(from_id: str, to_id: str) -> dict:
     sender = await get_user_by_id(from_id)
     receiver = await get_user_by_id(to_id)
     if not sender or not receiver:
-        return {"success": False, "error": "User not found"}
+        return {"success": False, "error": "Пользователь не найден"}
 
     friends = sender.get("friends") or []
     sent = sender.get("friend_requests_sent") or []
     received_by_target = receiver.get("friend_requests_received") or []
 
     if to_id in friends:
-        return {"success": False, "error": "Already friends"}
+        return {"success": False, "error": "Уже в друзьях"}
     if to_id in sent:
-        return {"success": False, "error": "Request already sent"}
+        return {"success": False, "error": "Запрос уже отправлен"}
 
     # Check if target already sent us a request → auto-accept
     incoming = sender.get("friend_requests_received") or []
@@ -365,11 +365,11 @@ async def accept_friend_request(from_id: str, to_id: str) -> dict:
 
     receiver = await get_user_by_id(to_id)
     if not receiver:
-        return {"success": False, "error": "User not found"}
+        return {"success": False, "error": "Пользователь не найден"}
 
     incoming = receiver.get("friend_requests_received") or []
     if from_id not in incoming:
-        return {"success": False, "error": "No pending request from this user"}
+        return {"success": False, "error": "Нет входящего запроса от этого пользователя"}
 
     # Add to friends lists
     await pool.execute(

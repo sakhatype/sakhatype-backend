@@ -14,7 +14,7 @@ def _validate_email_if_set(v: Optional[str]) -> Optional[str]:
     if v is None:
         return None
     if "@" not in v or "." not in v.split("@", 1)[-1]:
-        raise ValueError("Invalid email format")
+        raise ValueError("Некорректный формат email")
     return v
 
 
@@ -83,7 +83,7 @@ class UserUpdate(BaseModel):
     @model_validator(mode="after")
     def new_password_needs_current(self):
         if self.new_password and not (self.current_password or "").strip():
-            raise ValueError("Current password is required to set a new password")
+            raise ValueError("Укажите текущий пароль, чтобы задать новый")
         return self
 
 

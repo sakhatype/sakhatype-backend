@@ -20,11 +20,11 @@ router = APIRouter(prefix="/api/friends", tags=["friends"])
 async def request_friend(username: str, user_id: str = Depends(get_current_user)):
     target = await get_user_by_username(username)
     if not target:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     target_id = str(target["id"])
     if target_id == user_id:
-        raise HTTPException(status_code=400, detail="Cannot friend yourself")
+        raise HTTPException(status_code=400, detail="Нельзя добавить в друзья самого себя")
 
     result = await send_friend_request(user_id, target_id)
     if not result["success"]:
@@ -37,7 +37,7 @@ async def request_friend(username: str, user_id: str = Depends(get_current_user)
 async def accept_request(username: str, user_id: str = Depends(get_current_user)):
     sender = await get_user_by_username(username)
     if not sender:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     result = await accept_friend_request(str(sender["id"]), user_id)
     if not result["success"]:
@@ -50,7 +50,7 @@ async def accept_request(username: str, user_id: str = Depends(get_current_user)
 async def reject_request(username: str, user_id: str = Depends(get_current_user)):
     sender = await get_user_by_username(username)
     if not sender:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     result = await reject_friend_request(str(sender["id"]), user_id)
     if not result["success"]:
@@ -63,7 +63,7 @@ async def reject_request(username: str, user_id: str = Depends(get_current_user)
 async def delete_friend(username: str, user_id: str = Depends(get_current_user)):
     target = await get_user_by_username(username)
     if not target:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     result = await remove_friend(user_id, str(target["id"]))
     if not result["success"]:
@@ -100,7 +100,7 @@ async def friends_leaderboard(
 async def friendship_status(username: str, user_id: str = Depends(get_current_user)):
     target = await get_user_by_username(username)
     if not target:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
 
     target_id = str(target["id"])
     if target_id == user_id:
@@ -108,7 +108,7 @@ async def friendship_status(username: str, user_id: str = Depends(get_current_us
 
     user = await get_user_by_id(user_id)
     if not user:
-        raise HTTPException(status_code=404, detail="Current user not found")
+        raise HTTPException(status_code=404, detail="Текущий пользователь не найден")
 
     friends = user.get("friends") or []
     if target_id in friends:

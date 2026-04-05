@@ -54,20 +54,20 @@ async def get_current_user(token: Optional[str] = Depends(oauth2_scheme)):
     if token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
+            detail="Требуется авторизация",
             headers={"WWW-Authenticate": "Bearer"},
         )
     payload = decode_token(token)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
+            detail="Недействительный токен",
             headers={"WWW-Authenticate": "Bearer"},
         )
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
+            detail="Некорректные данные токена",
         )
     return user_id
