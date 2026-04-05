@@ -44,8 +44,10 @@ class Settings(BaseSettings):
             self.frontend_url,
             "https://sakhatype.ru",
             "https://www.sakhatype.ru",
+            "https://api.sakhatype.ru",
             "http://sakhatype.ru",
             "http://www.sakhatype.ru",
+            "http://api.sakhatype.ru",
             "http://localhost:5173",
             "http://localhost:3000",
         ]
