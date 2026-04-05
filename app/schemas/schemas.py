@@ -22,7 +22,7 @@ def _validate_email_if_set(v: Optional[str]) -> Optional[str]:
 class UserRegister(BaseModel):
     username: str = Field(..., min_length=3, max_length=20)
     email: Optional[str] = None
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=1)
 
     @field_validator("email", mode="before")
     @classmethod

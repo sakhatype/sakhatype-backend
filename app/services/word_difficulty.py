@@ -19,6 +19,7 @@
     ~⅓ слов с ≥1 спецбуквой; добор с теми же правилами длины/редкости длинных.
   • expert (сложный): пул с D ≥ D_expert_min; взвешенная выборка без повторов, вес ∝ D^γ
     (смещение к более трудным словам); при нехватке — ослабление порога.
+    Слова с эффективной длиной L ≤ 4 — не более ~5% партии, если хватает более длинных.
 """
 
 from __future__ import annotations
@@ -38,6 +39,11 @@ W_J = 0.12
 D_EXPERT_MIN = 0.30
 D_EXPERT_MIN_RELAX = 0.22
 EXPERT_WEIGHT_POWER = 2.4
+
+# Сложный режим: короткие слова (L ≤ порога) — очень редко, если есть достаточно длинных
+EXPERT_SHORT_EFFECTIVE_LEN_MAX = 4
+EXPERT_SHORT_WORD_MAX_FRACTION = 0.05
+EXPERT_SHORT_EXTRA_WEIGHT_FACTOR = 0.04  # при доборе с повтором — сильный штраф к весу коротких
 
 # Лёгкий режим: L∈[2,7]; L>5 встречаются редко; ~⅓ слов со спецбуквой
 NORMAL_EASY_LEN_MIN = 2
@@ -114,6 +120,80 @@ def word_difficulty_label(word: str) -> str:
     if d <= 0.48:
         return "medium"
     return "hard"
+
+
+def _expert_weight(score: float) -> float:
+    return max(0.001, float(score) ** EXPERT_WEIGHT_POWER)
+
+
+def _expert_weights_for_extra_pick(words: List[str], base_weights: List[float]) -> List[float]:
+    """Добор с повтором: сильно снижаем вес слов L ≤ EXPERT_SHORT_EFFECTIVE_LEN_MAX."""
+    out: List[float] = []
+    for w, bw in zip(words, base_weights):
+        ln = effective_letter_count(w)
+        if ln <= EXPERT_SHORT_EFFECTIVE_LEN_MAX:
+            out.append(max(0.001, float(bw) * EXPERT_SHORT_EXTRA_WEIGHT_FACTOR))
+        else:
+            out.append(max(0.001, float(bw)))
+    return out
+
+
+def _pick_expert_weighted_sample(pool: List[Tuple[str, float]], count: int) -> List[str]:
+    """
+    Взвешенная выборка для expert: предпочитаем L > EXPERT_SHORT_EFFECTIVE_LEN_MAX;
+    короткие (L ≤ порога) — не больше EXPERT_SHORT_WORD_MAX_FRACTION от count, когда возможно.
+    """
+    if not pool or count <= 0:
+        return []
+    words_only = [t[0] for t in pool]
+    weights = [_expert_weight(s) for _, s in pool]
+
+    max_short = max(0, round(count * EXPERT_SHORT_WORD_MAX_FRACTION))
+    long_words = [w for w in words_only if effective_letter_count(w) > EXPERT_SHORT_EFFECTIVE_LEN_MAX]
+    long_weights = [_expert_weight(s) for w, s in pool if effective_letter_count(w) > EXPERT_SHORT_EFFECTIVE_LEN_MAX]
+    short_words = [w for w in words_only if effective_letter_count(w) <= EXPERT_SHORT_EFFECTIVE_LEN_MAX]
+    short_weights = [_expert_weight(s) for w, s in pool if effective_letter_count(w) <= EXPERT_SHORT_EFFECTIVE_LEN_MAX]
+
+    if not long_words:
+        if len(words_only) >= count:
+            return _weighted_sample_without_replacement(words_only, weights, count)
+        first = _weighted_sample_without_replacement(words_only, weights, len(words_only))
+        extra_w = _expert_weights_for_extra_pick(words_only, weights)
+        first.extend(random.choices(words_only, weights=extra_w, k=count - len(first)))
+        return first
+
+    if len(long_words) >= count:
+        return _weighted_sample_without_replacement(long_words, long_weights, count)
+
+    long_first_cap = max(0, count - max_short)
+
+    if len(long_words) >= long_first_cap:
+        picked_long = _weighted_sample_without_replacement(long_words, long_weights, long_first_cap)
+        need = count - len(picked_long)
+        picked_short: List[str] = []
+        if short_words and need > 0:
+            take_short = min(need, len(short_words))
+            picked_short = _weighted_sample_without_replacement(short_words, short_weights, take_short)
+        out = picked_long + picked_short
+        still = count - len(out)
+        if still > 0:
+            extra_w = _expert_weights_for_extra_pick(long_words, long_weights)
+            out.extend(random.choices(long_words, weights=extra_w, k=still))
+        return out
+
+    picked_long = _weighted_sample_without_replacement(long_words, long_weights, len(long_words))
+    need = count - len(picked_long)
+    picked_short = (
+        _weighted_sample_without_replacement(short_words, short_weights, min(need, len(short_words)))
+        if short_words and need > 0
+        else []
+    )
+    out = picked_long + picked_short
+    still = count - len(out)
+    if still > 0:
+        extra_w = _expert_weights_for_extra_pick(words_only, weights)
+        out.extend(random.choices(words_only, weights=extra_w, k=still))
+    return out
 
 
 def _weighted_sample_without_replacement(items: List[str], weights: List[float], k: int) -> List[str]:
@@ -305,15 +385,9 @@ def pick_words_for_game_difficulty(words: List[str], game_difficulty: str, count
             pool = [x for x in scored if x[1] >= D_EXPERT_MIN_RELAX]
         if len(pool) < count:
             pool = list(scored)
-        weights = [max(0.001, s**EXPERT_WEIGHT_POWER) for _, s in pool]
-        words_only = [t[0] for t in pool]
-        if not words_only:
+        if not pool:
             return []
-        if len(words_only) >= count:
-            return _weighted_sample_without_replacement(words_only, weights, count)
-        first = _weighted_sample_without_replacement(words_only, weights, len(words_only))
-        extra = random.choices(words_only, weights=weights, k=count - len(first))
-        return first + extra
+        return _pick_expert_weighted_sample(pool, count)
 
     # normal: L∈[2,7], редко L>5, ~⅓ со спецбуквами
     picked = _pick_normal_easy_rare_long(raw, count)
