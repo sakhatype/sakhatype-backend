@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from app.db.postgres import get_pool
 from app.core.security import get_password_hash, verify_password
@@ -136,6 +136,15 @@ async def update_user_profile(
         )
 
     return await get_user_by_id(user_id)
+
+
+async def update_user_avatar_url(user_id: str, avatar_url: str) -> None:
+    pool = get_pool()
+    await pool.execute(
+        "UPDATE users SET avatar_url = $1 WHERE id = $2",
+        avatar_url,
+        int(user_id),
+    )
 
 
 async def save_test_result(user_id: Optional[str], result_data: dict) -> dict:
@@ -278,6 +287,105 @@ async def get_user_results(user_id: str, limit: int = 50) -> List[dict]:
     return [_row_to_dict(r) for r in rows]
 
 
+async def get_user_contribution_results(user_id: str, days: int = 320) -> List[dict]:
+    """Лёгкая выборка WPM по дням для тепловой карты (последние ``days`` дней)."""
+    pool = get_pool()
+    try:
+        uid = int(user_id)
+    except (ValueError, TypeError):
+        return []
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    rows = await pool.fetch(
+        """
+        SELECT wpm, created_at FROM results
+        WHERE user_id = $1 AND created_at >= $2
+        ORDER BY created_at DESC
+        LIMIT 20000
+        """,
+        uid,
+        since,
+    )
+    return [_row_to_dict(r) for r in rows]
+
+
+def _profile_period_to_since(period: str) -> Optional[datetime]:
+    p = (period or "all").strip().lower()
+    if p in ("", "all"):
+        return None
+    now = datetime.now(timezone.utc)
+    if p == "7d":
+        return now - timedelta(days=7)
+    if p in ("30d", "1m", "month"):
+        return now - timedelta(days=30)
+    if p in ("365d", "1y", "year"):
+        return now - timedelta(days=365)
+    return None
+
+
+async def get_user_tests_paginated(
+    user_id: str,
+    *,
+    period: str = "all",
+    mode: str = "all",
+    page: int = 1,
+    page_size: int = 40,
+) -> tuple[List[dict], int]:
+    """
+    Полные записи тестов с фильтрами и пагинацией.
+    ``page_size``: 40, 60 или 120.
+    """
+    pool = get_pool()
+    try:
+        uid = int(user_id)
+    except (ValueError, TypeError):
+        return [], 0
+
+    if page_size not in (40, 60, 120):
+        page_size = 40
+    page = max(1, int(page))
+
+    m = (mode or "all").strip().lower()
+    if m not in ("all", "time", "words"):
+        m = "all"
+
+    since = _profile_period_to_since(period)
+
+    conds = ["user_id = $1"]
+    args: list = [uid]
+    n = 2
+
+    if since is not None:
+        conds.append(f"created_at >= ${n}")
+        args.append(since)
+        n += 1
+
+    if m != "all":
+        conds.append(f"mode = ${n}")
+        args.append(m)
+        n += 1
+
+    where_sql = " AND ".join(conds)
+    count_row = await pool.fetchrow(
+        f"SELECT COUNT(*) AS c FROM results WHERE {where_sql}", *args
+    )
+    total = int(count_row["c"]) if count_row else 0
+
+    offset = (page - 1) * page_size
+    args_with_page = list(args) + [page_size, offset]
+    lim_idx = n
+    off_idx = n + 1
+    rows = await pool.fetch(
+        f"""
+        SELECT * FROM results
+        WHERE {where_sql}
+        ORDER BY created_at DESC
+        LIMIT ${lim_idx} OFFSET ${off_idx}
+        """,
+        *args_with_page,
+    )
+    return [_row_to_dict(r) for r in rows], total
+
+
 async def get_leaderboard(
     mode: str = "time",
     mode_value: int = 30,
@@ -294,7 +402,7 @@ async def get_leaderboard(
         """
         SELECT DISTINCT ON (r.user_id)
                r.user_id, r.wpm AS best_wpm, r.accuracy AS best_accuracy,
-               u.username, u.level,
+               u.username, u.level, u.avatar_url,
                COALESCE(r.difficulty, 'normal') AS result_difficulty
         FROM results r
         JOIN users u ON u.id = r.user_id
@@ -321,6 +429,7 @@ async def get_leaderboard(
             "language": "sakha",
             "level": entry.get("level", 1),
             "difficulty": entry.get("result_difficulty") or difficulty,
+            "avatar_url": entry.get("avatar_url"),
         })
 
     return leaderboard
@@ -442,6 +551,7 @@ async def get_friends_list(user_id: str) -> List[dict]:
                 "level": friend.get("level", 1),
                 "best_wpm": friend.get("best_wpm", 0),
                 "avg_wpm": friend.get("avg_wpm", 0),
+                "avatar_url": friend.get("avatar_url"),
             })
     return friends
 
@@ -455,13 +565,23 @@ async def get_friend_requests(user_id: str) -> dict:
     for fid in (user.get("friend_requests_received") or []):
         u = await get_user_by_id(fid)
         if u:
-            incoming.append({"id": str(u["id"]), "username": u["username"], "level": u.get("level", 1)})
+            incoming.append({
+                "id": str(u["id"]),
+                "username": u["username"],
+                "level": u.get("level", 1),
+                "avatar_url": u.get("avatar_url"),
+            })
 
     outgoing = []
     for fid in (user.get("friend_requests_sent") or []):
         u = await get_user_by_id(fid)
         if u:
-            outgoing.append({"id": str(u["id"]), "username": u["username"], "level": u.get("level", 1)})
+            outgoing.append({
+                "id": str(u["id"]),
+                "username": u["username"],
+                "level": u.get("level", 1),
+                "avatar_url": u.get("avatar_url"),
+            })
 
     return {"incoming": incoming, "outgoing": outgoing}
 
@@ -497,7 +617,7 @@ async def get_friends_leaderboard(
         """
         SELECT DISTINCT ON (r.user_id)
                r.user_id, r.wpm AS best_wpm, r.accuracy AS best_accuracy,
-               u.username, u.level,
+               u.username, u.level, u.avatar_url,
                COALESCE(r.difficulty, 'normal') AS result_difficulty
         FROM results r
         JOIN users u ON u.id = r.user_id
@@ -523,6 +643,7 @@ async def get_friends_leaderboard(
             "language": "sakha",
             "level": entry.get("level", 1),
             "difficulty": entry.get("result_difficulty") or difficulty,
+            "avatar_url": entry.get("avatar_url"),
         })
 
     return leaderboard

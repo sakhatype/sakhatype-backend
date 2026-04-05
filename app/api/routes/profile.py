@@ -1,9 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+
 from app.schemas.schemas import UserUpdate
 from app.services.user_service import (
-    get_user_by_id, get_user_by_username, get_user_results,
-    xp_for_next_level, ACHIEVEMENTS, update_user_profile,
+    get_user_by_id,
+    get_user_by_username,
+    get_user_contribution_results,
+    get_user_tests_paginated,
+    xp_for_next_level,
+    ACHIEVEMENTS,
+    update_user_profile,
+    update_user_avatar_url,
 )
+from app.services.avatar_storage import process_avatar_image, save_avatar_for_user
 from app.core.security import get_current_user
 from app.api.routes.auth import user_to_public
 
@@ -14,6 +22,27 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 async def get_all_achievements():
     """Get all possible achievements."""
     return ACHIEVEMENTS
+
+
+@router.post("/avatar")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
+    content = await file.read()
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Файл слишком большой (макс. 8 МБ)")
+    try:
+        webp_bytes = process_avatar_image(content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    url = save_avatar_for_user(user_id, webp_bytes)
+    await update_user_avatar_url(user_id, url)
+    user = await get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    return {"avatar_url": url, "user": user_to_public(user)}
 
 
 @router.put("/update")
@@ -35,37 +64,73 @@ async def update_profile(data: UserUpdate, user_id: str = Depends(get_current_us
     return {"user": user_to_public(user)}
 
 
+def _result_row_to_history_item(r: dict) -> dict:
+    return {
+        "wpm": r["wpm"],
+        "raw_wpm": r.get("raw_wpm", r["wpm"]),
+        "accuracy": r["accuracy"],
+        "created_at": r["created_at"].isoformat(),
+        "timestamp": r["created_at"].isoformat(),
+        "mode": r["mode"],
+        "mode_value": r["mode_value"],
+        "language": r["language"],
+        "difficulty": r.get("difficulty", "normal"),
+        "chars_correct": r.get("chars_correct", 0),
+        "chars_incorrect": r.get("chars_incorrect", 0),
+        "chars_extra": r.get("chars_extra", 0),
+        "chars_missed": r.get("chars_missed", 0),
+    }
+
+
+@router.get("/{username}/tests")
+async def get_profile_tests(
+    username: str,
+    period: str = Query("all", description="all | 7d | 30d | 365d"),
+    mode: str = Query("all", description="all | time | words"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(40, description="40 | 60 | 120"),
+):
+    user = await get_user_by_username(username)
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    ps = page_size if page_size in (40, 60, 120) else 40
+    results, total = await get_user_tests_paginated(
+        str(user["id"]),
+        period=period,
+        mode=mode,
+        page=page,
+        page_size=ps,
+    )
+    return {
+        "tests": [_result_row_to_history_item(r) for r in results],
+        "total": total,
+        "page": page,
+        "page_size": ps,
+    }
+
+
 @router.get("/{username}")
 async def get_profile(username: str):
     user = await get_user_by_username(username)
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    results = await get_user_results(str(user["id"]), limit=100)
-
+    contrib = await get_user_contribution_results(str(user["id"]), days=320)
     wpm_history = [
         {
             "wpm": r["wpm"],
-            "raw_wpm": r.get("raw_wpm", r["wpm"]),
-            "accuracy": r["accuracy"],
             "created_at": r["created_at"].isoformat(),
             "timestamp": r["created_at"].isoformat(),
-            "mode": r["mode"],
-            "mode_value": r["mode_value"],
-            "language": r["language"],
-            "difficulty": r.get("difficulty", "normal"),
-            "chars_correct": r.get("chars_correct", 0),
-            "chars_incorrect": r.get("chars_incorrect", 0),
-            "chars_extra": r.get("chars_extra", 0),
-            "chars_missed": r.get("chars_missed", 0),
         }
-        for r in results
+        for r in contrib
     ]
 
     return {
         "user": {
             "id": str(user["id"]),
             "username": user["username"],
+            "avatar_url": user.get("avatar_url"),
             "level": user.get("level", 1),
             "xp": user.get("xp", 0),
             "xp_to_next": xp_for_next_level(user.get("level", 1)),

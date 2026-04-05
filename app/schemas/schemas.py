@@ -51,6 +51,7 @@ class UserPublic(BaseModel):
     id: str
     username: str
     email: Optional[str] = None
+    avatar_url: Optional[str] = None
     level: int = 1
     xp: int = 0
     xp_to_next: int = 100

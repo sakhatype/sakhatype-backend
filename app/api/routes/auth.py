@@ -14,6 +14,7 @@ def user_to_public(user: dict) -> UserPublic:
         id=str(user["id"]),
         username=user["username"],
         email=user.get("email"),
+        avatar_url=user.get("avatar_url"),
         level=user.get("level", 1),
         xp=user.get("xp", 0),
         xp_to_next=xp_for_next_level(user.get("level", 1)),
