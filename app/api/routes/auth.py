@@ -95,8 +95,7 @@ async def upload_avatar(
     user_id: str = Depends(get_current_user),
 ):
     """
-    Аватар (дубликат логики с POST /api/profile/me/avatar).
-    Удобно для клиентов; если прокси режет /api/auth/*, используйте /api/profile/me/avatar.
+    Аватар (как POST /api/profile/me/avatar и /api/typing/avatar).
     """
     content = await file.read()
     try:

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from app.schemas.schemas import (
     TestResultCreate,
     TestResultResponse,
@@ -15,7 +15,8 @@ from app.services.user_service import (
     xp_for_next_level,
 )
 from app.services.word_service import get_words
-from app.core.security import get_current_user_optional
+from app.core.security import get_current_user, get_current_user_optional
+from app.api.routes.profile import _do_avatar_upload
 
 router = APIRouter(prefix="/api/typing", tags=["typing"])
 
@@ -24,6 +25,15 @@ router = APIRouter(prefix="/api/typing", tags=["typing"])
 async def fetch_words(req: WordsRequest):
     words = get_words(language=req.language, count=req.count, difficulty=req.difficulty)
     return WordsResponse(words=words, language=req.language)
+
+
+@router.post("/avatar")
+async def upload_avatar_via_typing(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
+    """Тот же аватар, что /api/auth/avatar — если /profile/* режется, а POST /typing/result уже ходит."""
+    return await _do_avatar_upload(file, user_id)
 
 
 @router.post("/result", response_model=TestResultWithXP)

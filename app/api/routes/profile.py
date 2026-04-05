@@ -45,17 +45,18 @@ async def upload_my_avatar(
     user_id: str = Depends(get_current_user),
 ):
     """
-    Загрузка аватара. Если прокси не пропускает /me/avatar, дубликат: POST /api/profile/avatar.
+    Загрузка аватара. Дубликат без вложенного пути: POST /api/profile/upload-avatar
+    (не /avatar — иначе при отсутствии POST на проде Starlette отдаёт 405 из-за GET /{username}).
     """
     return await _do_avatar_upload(file, user_id)
 
 
-@router.post("/avatar")
-async def upload_my_avatar_flat(
+@router.post("/upload-avatar")
+async def upload_my_avatar_one_segment(
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user),
 ):
-    """Тот же обработчик без сегмента /me/ — для ingress, который режет вложенные пути."""
+    """Один сегмент после /profile/, без конфликта с GET /api/profile/{username}."""
     return await _do_avatar_upload(file, user_id)
 
 
