@@ -4,15 +4,16 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from app.schemas.schemas import UserUpdate
 from app.services.user_service import (
+    ACHIEVEMENTS,
     apply_avatar_upload,
+    get_profile_tests_payload_by_username,
     get_user_by_id,
-    get_user_by_username,
     get_user_by_username_ci,
     get_user_contribution_results,
     get_user_tests_paginated,
-    xp_for_next_level,
-    ACHIEVEMENTS,
+    result_row_to_profile_history_item,
     update_user_profile,
+    xp_for_next_level,
 )
 from app.core.security import get_current_user
 from app.api.routes.auth import user_to_public
@@ -26,15 +27,7 @@ async def get_all_achievements():
     return ACHIEVEMENTS
 
 
-@router.post("/me/avatar")
-async def upload_my_avatar(
-    file: UploadFile = File(...),
-    user_id: str = Depends(get_current_user),
-):
-    """
-    Загрузка аватара текущего пользователя. Путь не пересекается с GET /{username}.
-    Основной URL для фронта, если на проде 404 на /api/auth/avatar (прокси / nginx).
-    """
+async def _do_avatar_upload(file: UploadFile, user_id: str) -> dict:
     content = await file.read()
     try:
         data = await apply_avatar_upload(user_id, content)
@@ -44,6 +37,26 @@ async def upload_my_avatar(
             raise HTTPException(status_code=404, detail=msg) from e
         raise HTTPException(status_code=400, detail=msg) from e
     return {"avatar_url": data["avatar_url"], "user": user_to_public(data["user"])}
+
+
+@router.post("/me/avatar")
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
+    """
+    Загрузка аватара. Если прокси не пропускает /me/avatar, дубликат: POST /api/profile/avatar.
+    """
+    return await _do_avatar_upload(file, user_id)
+
+
+@router.post("/avatar")
+async def upload_my_avatar_flat(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
+    """Тот же обработчик без сегмента /me/ — для ingress, который режет вложенные пути."""
+    return await _do_avatar_upload(file, user_id)
 
 
 @router.put("/update")
@@ -65,22 +78,17 @@ async def update_profile(data: UserUpdate, user_id: str = Depends(get_current_us
     return {"user": user_to_public(user)}
 
 
-def _result_row_to_history_item(r: dict) -> dict:
-    return {
-        "wpm": r["wpm"],
-        "raw_wpm": r.get("raw_wpm", r["wpm"]),
-        "accuracy": r["accuracy"],
-        "created_at": r["created_at"].isoformat(),
-        "timestamp": r["created_at"].isoformat(),
-        "mode": r["mode"],
-        "mode_value": r["mode_value"],
-        "language": r["language"],
-        "difficulty": r.get("difficulty", "normal"),
-        "chars_correct": r.get("chars_correct", 0),
-        "chars_incorrect": r.get("chars_incorrect", 0),
-        "chars_extra": r.get("chars_extra", 0),
-        "chars_missed": r.get("chars_missed", 0),
-    }
+async def _profile_tests_payload(
+    username: str,
+    period: str,
+    mode: str,
+    page: int,
+    page_size: int,
+) -> dict:
+    out = await get_profile_tests_payload_by_username(username, period, mode, page, page_size)
+    if not out:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    return out
 
 
 @router.get("/{username}/tests")
@@ -91,24 +99,7 @@ async def get_profile_tests(
     page: int = Query(1, ge=1),
     page_size: int = Query(40, description="40 | 60 | 120"),
 ):
-    user = await get_user_by_username_ci(username)
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-
-    ps = page_size if page_size in (40, 60, 120) else 40
-    results, total = await get_user_tests_paginated(
-        str(user["id"]),
-        period=period,
-        mode=mode,
-        page=page,
-        page_size=ps,
-    )
-    return {
-        "tests": [_result_row_to_history_item(r) for r in results],
-        "total": total,
-        "page": page,
-        "page_size": ps,
-    }
+    return await _profile_tests_payload(username, period, mode, page, page_size)
 
 
 @router.get("/{username}")
@@ -164,7 +155,7 @@ async def get_profile(
             page=tests_page,
             page_size=ps,
         )
-        payload["tests"] = [_result_row_to_history_item(r) for r in results]
+        payload["tests"] = [result_row_to_profile_history_item(r) for r in results]
         payload["total"] = total
         payload["page"] = tests_page
         payload["page_size"] = ps

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends
 from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from app.schemas.schemas import (
     TestResultCreate,
     TestResultResponse,
@@ -7,7 +8,12 @@ from app.schemas.schemas import (
     WordsRequest,
     WordsResponse,
 )
-from app.services.user_service import save_test_result, get_user_results, xp_for_next_level
+from app.services.user_service import (
+    get_profile_tests_payload_by_username,
+    get_user_results,
+    save_test_result,
+    xp_for_next_level,
+)
 from app.services.word_service import get_words
 from app.core.security import get_current_user_optional
 
@@ -54,6 +60,24 @@ async def submit_result(
         xp_to_next=saved["xp_to_next"],
         new_achievements=saved["new_achievements"],
     )
+
+
+@router.get("/user-tests")
+async def get_public_user_tests(
+    username: str = Query(..., description="Имя пользователя (как в URL профиля)"),
+    period: str = Query("all", description="all | 7d | 30d | 365d"),
+    mode: str = Query("all", description="all | time | words"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(40, description="40 | 60 | 120"),
+):
+    """
+    Публичный список тестов по нику. Один сегмент пути (/api/typing/user-tests), без вложенности
+    /profile/{user}/tests — удобно, если ingress режет глубокие пути под /api/profile/.
+    """
+    out = await get_profile_tests_payload_by_username(username, period, mode, page, page_size)
+    if not out:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    return out
 
 
 @router.get("/history")

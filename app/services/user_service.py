@@ -416,6 +416,52 @@ async def get_user_tests_paginated(
     return [_row_to_dict(r) for r in rows], total
 
 
+def result_row_to_profile_history_item(r: dict) -> dict:
+    """Формат одной записи для блока «пройденные тесты» в профиле."""
+    return {
+        "wpm": r["wpm"],
+        "raw_wpm": r.get("raw_wpm", r["wpm"]),
+        "accuracy": r["accuracy"],
+        "created_at": r["created_at"].isoformat(),
+        "timestamp": r["created_at"].isoformat(),
+        "mode": r["mode"],
+        "mode_value": r["mode_value"],
+        "language": r["language"],
+        "difficulty": r.get("difficulty", "normal"),
+        "chars_correct": r.get("chars_correct", 0),
+        "chars_incorrect": r.get("chars_incorrect", 0),
+        "chars_extra": r.get("chars_extra", 0),
+        "chars_missed": r.get("chars_missed", 0),
+    }
+
+
+async def get_profile_tests_payload_by_username(
+    username: str,
+    period: str,
+    mode: str,
+    page: int,
+    page_size: int,
+) -> Optional[dict]:
+    """Пагинированный список тестов пользователя по нику; None если пользователя нет."""
+    user = await get_user_by_username_ci(username)
+    if not user:
+        return None
+    ps = page_size if page_size in (40, 60, 120) else 40
+    results, total = await get_user_tests_paginated(
+        str(user["id"]),
+        period=period,
+        mode=mode,
+        page=page,
+        page_size=ps,
+    )
+    return {
+        "tests": [result_row_to_profile_history_item(r) for r in results],
+        "total": total,
+        "page": page,
+        "page_size": ps,
+    }
+
+
 async def get_leaderboard(
     mode: str = "time",
     mode_value: int = 30,
