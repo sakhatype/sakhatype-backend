@@ -1,14 +1,13 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.schemas.schemas import UserRegister, UserLogin, Token, UserPublic
-from app.services.avatar_storage import process_avatar_image, save_avatar_for_user
 from app.services.user_service import (
+    apply_avatar_upload,
     authenticate_user,
     create_user,
     get_user_by_email,
     get_user_by_id,
     get_user_by_username,
-    update_user_avatar_url,
     xp_for_next_level,
 )
 from app.core.security import create_access_token, get_current_user
@@ -96,20 +95,15 @@ async def upload_avatar(
     user_id: str = Depends(get_current_user),
 ):
     """
-    Аватар (WebP 128×128). Вынесено из /api/profile/*, чтобы путь не пересекался
-    с GET /api/profile/{username} (иначе «avatar» воспринимается как ник → 405 на POST).
+    Аватар (дубликат логики с POST /api/profile/me/avatar).
+    Удобно для клиентов; если прокси режет /api/auth/*, используйте /api/profile/me/avatar.
     """
     content = await file.read()
-    if len(content) > 8 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Файл слишком большой (макс. 8 МБ)")
     try:
-        webp_bytes = process_avatar_image(content)
+        data = await apply_avatar_upload(user_id, content)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    url = save_avatar_for_user(user_id, webp_bytes)
-    await update_user_avatar_url(user_id, url)
-    user = await get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return {"avatar_url": url, "user": user_to_public(user)}
+        msg = str(e)
+        if msg == "Пользователь не найден":
+            raise HTTPException(status_code=404, detail=msg) from e
+        raise HTTPException(status_code=400, detail=msg) from e
+    return {"avatar_url": data["avatar_url"], "user": user_to_public(data["user"])}

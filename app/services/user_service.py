@@ -1,7 +1,11 @@
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List
-from app.db.postgres import get_pool
+from typing import Any, Dict, List, Optional
+
 from app.core.security import get_password_hash, verify_password
+from app.db.postgres import get_pool
+from app.services.avatar_storage import process_avatar_image, save_avatar_for_user
+
+_AVATAR_UPLOAD_MAX_BYTES = 8 * 1024 * 1024
 
 
 ACHIEVEMENTS = {
@@ -155,6 +159,22 @@ async def update_user_avatar_url(user_id: str, avatar_url: str) -> None:
         avatar_url,
         int(user_id),
     )
+
+
+async def apply_avatar_upload(user_id: str, content: bytes) -> Dict[str, Any]:
+    """
+    Обработка файла аватара: WebP 128×128, запись на диск, UPDATE users.
+    ValueError — текст для HTTP 400; «Пользователь не найден» — отдать как 404 в роуте.
+    """
+    if len(content) > _AVATAR_UPLOAD_MAX_BYTES:
+        raise ValueError("Файл слишком большой (макс. 8 МБ)")
+    webp_bytes = process_avatar_image(content)
+    url = save_avatar_for_user(user_id, webp_bytes)
+    await update_user_avatar_url(user_id, url)
+    user = await get_user_by_id(user_id)
+    if not user:
+        raise ValueError("Пользователь не найден")
+    return {"avatar_url": url, "user": user}
 
 
 async def save_test_result(user_id: Optional[str], result_data: dict) -> dict:

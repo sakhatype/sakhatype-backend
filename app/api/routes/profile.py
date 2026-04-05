@@ -1,9 +1,10 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from app.schemas.schemas import UserUpdate
 from app.services.user_service import (
+    apply_avatar_upload,
     get_user_by_id,
     get_user_by_username,
     get_user_by_username_ci,
@@ -23,6 +24,26 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 async def get_all_achievements():
     """Get all possible achievements."""
     return ACHIEVEMENTS
+
+
+@router.post("/me/avatar")
+async def upload_my_avatar(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+):
+    """
+    Загрузка аватара текущего пользователя. Путь не пересекается с GET /{username}.
+    Основной URL для фронта, если на проде 404 на /api/auth/avatar (прокси / nginx).
+    """
+    content = await file.read()
+    try:
+        data = await apply_avatar_upload(user_id, content)
+    except ValueError as e:
+        msg = str(e)
+        if msg == "Пользователь не найден":
+            raise HTTPException(status_code=404, detail=msg) from e
+        raise HTTPException(status_code=400, detail=msg) from e
+    return {"avatar_url": data["avatar_url"], "user": user_to_public(data["user"])}
 
 
 @router.put("/update")
