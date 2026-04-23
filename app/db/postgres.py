@@ -48,6 +48,11 @@ CREATE TABLE IF NOT EXISTS results (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS words (
+    id              SERIAL PRIMARY KEY,
+    word            TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_results_user_created
     ON results (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_results_wpm

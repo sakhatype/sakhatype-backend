@@ -81,7 +81,7 @@ async def arena_ws(websocket: WebSocket, room_id: str, username: str):
             if msg["type"] == "start":
                 rooms[room_id]["status"] = "in_progress"
                 from app.services.word_service import get_words
-                words = get_words(
+                words = await get_words(
                     language=rooms[room_id]["language"],
                     count=100,
                     difficulty=rooms[room_id].get("difficulty", "normal"),
