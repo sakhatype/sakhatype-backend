@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     username        VARCHAR(30) NOT NULL UNIQUE,
     email           VARCHAR(255) UNIQUE,
     password_hash   TEXT NOT NULL,
+    leaderboard_banned BOOLEAN NOT NULL DEFAULT FALSE,
     level           INTEGER NOT NULL DEFAULT 1,
     xp              INTEGER NOT NULL DEFAULT 0,
     total_tests     INTEGER NOT NULL DEFAULT 0,
@@ -85,6 +86,9 @@ async def connect_db():
             )
             await conn.execute(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"
+            )
+            await conn.execute(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS leaderboard_banned BOOLEAN NOT NULL DEFAULT FALSE"
             )
         print("Schema ensured OK")
 

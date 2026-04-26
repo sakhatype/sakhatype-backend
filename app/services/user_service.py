@@ -483,6 +483,7 @@ async def get_leaderboard(
         FROM results r
         JOIN users u ON u.id = r.user_id
         WHERE r.user_id IS NOT NULL
+          AND u.leaderboard_banned = FALSE
           AND r.mode = $1
           AND r.mode_value = $2
           AND COALESCE(r.difficulty, 'normal') = $3
@@ -700,6 +701,7 @@ async def get_friends_leaderboard(
         FROM results r
         JOIN users u ON u.id = r.user_id
         WHERE r.user_id = ANY($1)
+          AND u.leaderboard_banned = FALSE
           AND r.mode = $2
           AND r.mode_value = $3
           AND COALESCE(r.difficulty, 'normal') = $4
